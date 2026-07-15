@@ -14,14 +14,34 @@
       overflow: hidden;
     }
 
-    #orb {
+    .effect-layer {
       position: fixed;
       z-index: 0;
+      opacity: 0;
+      visibility: hidden;
+      transition: opacity 420ms ease, visibility 420ms ease;
+      pointer-events: none;
+    }
+
+    .effect-layer.active {
+      opacity: 1;
+      visibility: visible;
+    }
+
+    #orb {
+      position: fixed;
       width: min(640px, 72vmin);
       height: min(640px, 72vmin);
       top: 50%;
       left: 50%;
       transform: translate(-50%, -50%);
+    }
+
+    #lightning,
+    #lightfall {
+      inset: 0;
+      width: 100%;
+      height: 100%;
     }
 
     #orb canvas {
@@ -54,18 +74,113 @@
       letter-spacing: 0.22em;
       text-transform: lowercase;
       white-space: nowrap;
+      pointer-events: auto;
+      cursor: default;
+    }
+
+    .effect-switcher {
+      position: fixed;
+      z-index: 20;
+      left: 50%;
+      bottom: max(24px, env(safe-area-inset-bottom));
+      transform: translateX(-50%);
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      padding: 4px;
+      border: 1px solid rgba(255, 255, 255, 0.12);
+      border-radius: 999px;
+      background: rgba(8, 8, 12, 0.62);
+      box-shadow: 0 12px 34px rgba(0, 0, 0, 0.35);
+      backdrop-filter: blur(18px);
+      -webkit-backdrop-filter: blur(18px);
+    }
+
+    .effect-button {
+      appearance: none;
+      border: 0;
+      border-radius: 999px;
+      padding: 8px 14px;
+      background: transparent;
+      color: rgba(255, 255, 255, 0.42);
+      font: 500 10px/1 -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      cursor: pointer;
+      transition: color 180ms ease, background 180ms ease, box-shadow 180ms ease;
+    }
+
+    .effect-button:hover {
+      color: rgba(255, 255, 255, 0.82);
+    }
+
+    .effect-button.active {
+      color: #fff;
+      background: rgba(255, 255, 255, 0.12);
+      box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.08);
+    }
+
+    .effect-button:focus-visible {
+      outline: 2px solid #67a1ff;
+      outline-offset: 2px;
+    }
+
+    .sr-only {
+      position: absolute;
+      width: 1px;
+      height: 1px;
+      padding: 0;
+      margin: -1px;
+      overflow: hidden;
+      clip: rect(0, 0, 0, 0);
+      white-space: nowrap;
+      border: 0;
+    }
+
+    @media (max-width: 520px) {
+      .effect-button { padding: 8px 11px; font-size: 9px; }
+      .tagline { font-size: 9px; letter-spacing: 0.16em; }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      .effect-layer { transition: none; }
     }
   </style>
 </head>
 <body>
 
-  <div id="orb"></div>
+  <div id="orb" class="effect-layer active" aria-hidden="true"></div>
+  <canvas id="lightning" class="effect-layer" aria-hidden="true"></canvas>
+  <div id="lightfall" class="effect-layer" aria-hidden="true"></div>
 
   <div class="center-stack">
     <img class="logo" src="assets/UP-Logo-white.svg" alt="Unlimited Power X">
-    <div class="tagline">building the future&nbsp;&nbsp;·&nbsp;&nbsp;·&nbsp;&nbsp;·</div>
+    <div class="tagline" id="tagline">
+      <span class="sr-only">building the future · · ·</span>
+      <span id="tagline-animated" aria-hidden="true">building the future&nbsp;&nbsp;·&nbsp;&nbsp;·&nbsp;&nbsp;·</span>
+    </div>
   </div>
 
+  <div class="effect-switcher" role="group" aria-label="Background effect">
+    <button class="effect-button active" type="button" data-effect="orb" aria-pressed="true">Orb</button>
+    <button class="effect-button" type="button" data-effect="lightning" aria-pressed="false">Lightning</button>
+    <button class="effect-button" type="button" data-effect="lightfall" aria-pressed="false">Lightfall</button>
+  </div>
+
+  <!--
+    Lightning, Lightfall, and Decrypted Text are adapted from React Bits.
+    MIT + Commons Clause License Condition v1.0
+    Copyright (c) 2026 David Haz
+
+    Permission is hereby granted, free of charge, to any person obtaining a copy
+    of this software and associated documentation files (the "Software"), to deal
+    in the Software without restriction, including without limitation the rights
+    to use, copy, modify, merge, publish, and distribute the Software as part of
+    an application, website, or product, provided this notice is included.
+    The components themselves may not be sold, sublicensed, or redistributed.
+    THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND.
+    Source: https://github.com/DavidHDev/react-bits
+  -->
   <script type="module">
     import { Mesh, Program, Renderer, Triangle, Vec3 } from 'https://esm.sh/ogl@1.0.8';
 
@@ -305,9 +420,311 @@
         program.uniforms.rot.value = currentRot;
       }
 
-      renderer.render({ scene: mesh });
+      if (container.classList.contains('active')) {
+        renderer.render({ scene: mesh });
+      }
     }
     requestAnimationFrame(tick);
+  </script>
+
+  <script type="module">
+    import { Mesh, Program, Renderer, Triangle } from 'https://esm.sh/ogl@1.0.8';
+
+    const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    const lightningCanvas = document.getElementById('lightning');
+    const lightfallContainer = document.getElementById('lightfall');
+
+    function createLightning(canvas) {
+      const gl = canvas.getContext('webgl', { alpha: true, premultipliedAlpha: false });
+      if (!gl) return;
+
+      const vertexSource = `
+        attribute vec2 aPosition;
+        void main() { gl_Position = vec4(aPosition, 0.0, 1.0); }
+      `;
+      const fragmentSource = `
+        precision mediump float;
+        uniform vec2 iResolution;
+        uniform float iTime;
+        #define OCTAVE_COUNT 10
+
+        vec3 hsv2rgb(vec3 c) {
+          vec3 rgb = clamp(abs(mod(c.x * 6.0 + vec3(0.0,4.0,2.0), 6.0) - 3.0) - 1.0, 0.0, 1.0);
+          return c.z * mix(vec3(1.0), rgb, c.y);
+        }
+        float hash11(float p) {
+          p = fract(p * .1031); p *= p + 33.33; p *= p + p; return fract(p);
+        }
+        float hash12(vec2 p) {
+          vec3 p3 = fract(vec3(p.xyx) * .1031);
+          p3 += dot(p3, p3.yzx + 33.33);
+          return fract((p3.x + p3.y) * p3.z);
+        }
+        mat2 rotate2d(float theta) {
+          float c = cos(theta); float s = sin(theta); return mat2(c, -s, s, c);
+        }
+        float noise(vec2 p) {
+          vec2 ip = floor(p); vec2 fp = fract(p);
+          float a = hash12(ip);
+          float b = hash12(ip + vec2(1.0, 0.0));
+          float c = hash12(ip + vec2(0.0, 1.0));
+          float d = hash12(ip + vec2(1.0, 1.0));
+          vec2 t = smoothstep(0.0, 1.0, fp);
+          return mix(mix(a, b, t.x), mix(c, d, t.x), t.y);
+        }
+        float fbm(vec2 p) {
+          float value = 0.0; float amplitude = 0.5;
+          for (int i = 0; i < OCTAVE_COUNT; ++i) {
+            value += amplitude * noise(p);
+            p *= rotate2d(0.45); p *= 2.0; amplitude *= 0.5;
+          }
+          return value;
+        }
+        void main() {
+          vec2 uv = gl_FragCoord.xy / iResolution.xy;
+          uv = 2.0 * uv - 1.0;
+          uv.x *= iResolution.x / iResolution.y;
+          uv.x += 0.1;
+          uv += 2.0 * fbm(uv * 0.3 + 0.8 * iTime * 0.6) - 1.0;
+          float dist = max(abs(uv.x), 0.001);
+          vec3 baseColor = hsv2rgb(vec3(230.0 / 360.0, 0.7, 0.8));
+          vec3 col = baseColor * pow(mix(0.0, 0.07, hash11(iTime * 0.6)) / dist, 1.0) * 1.2;
+          float alpha = clamp(max(col.r, max(col.g, col.b)), 0.0, 1.0);
+          gl_FragColor = vec4(col, alpha);
+        }
+      `;
+
+      const compile = (source, type) => {
+        const shader = gl.createShader(type);
+        gl.shaderSource(shader, source);
+        gl.compileShader(shader);
+        if (!gl.getShaderParameter(shader, gl.COMPILE_STATUS)) {
+          console.error('Lightning shader:', gl.getShaderInfoLog(shader));
+          return null;
+        }
+        return shader;
+      };
+      const vertex = compile(vertexSource, gl.VERTEX_SHADER);
+      const fragment = compile(fragmentSource, gl.FRAGMENT_SHADER);
+      if (!vertex || !fragment) return;
+
+      const program = gl.createProgram();
+      gl.attachShader(program, vertex);
+      gl.attachShader(program, fragment);
+      gl.linkProgram(program);
+      if (!gl.getProgramParameter(program, gl.LINK_STATUS)) return;
+      gl.useProgram(program);
+
+      const vertices = new Float32Array([-1,-1, 1,-1, -1,1, -1,1, 1,-1, 1,1]);
+      const buffer = gl.createBuffer();
+      gl.bindBuffer(gl.ARRAY_BUFFER, buffer);
+      gl.bufferData(gl.ARRAY_BUFFER, vertices, gl.STATIC_DRAW);
+      const position = gl.getAttribLocation(program, 'aPosition');
+      gl.enableVertexAttribArray(position);
+      gl.vertexAttribPointer(position, 2, gl.FLOAT, false, 0, 0);
+      const resolution = gl.getUniformLocation(program, 'iResolution');
+      const time = gl.getUniformLocation(program, 'iTime');
+
+      const resize = () => {
+        const dpr = Math.min(window.devicePixelRatio || 1, 2);
+        const width = Math.round(window.innerWidth * dpr);
+        const height = Math.round(window.innerHeight * dpr);
+        if (canvas.width !== width || canvas.height !== height) {
+          canvas.width = width;
+          canvas.height = height;
+        }
+        gl.viewport(0, 0, width, height);
+        gl.uniform2f(resolution, width, height);
+      };
+      window.addEventListener('resize', resize);
+      resize();
+
+      const render = t => {
+        requestAnimationFrame(render);
+        if (!canvas.classList.contains('active')) return;
+        gl.uniform1f(time, reduceMotion ? 0 : t * 0.001);
+        gl.drawArrays(gl.TRIANGLES, 0, 6);
+      };
+      requestAnimationFrame(render);
+    }
+
+    function createLightfall(container) {
+      const renderer = new Renderer({
+        dpr: Math.min(window.devicePixelRatio || 1, 2),
+        alpha: true,
+        antialias: true
+      });
+      const gl = renderer.gl;
+      gl.canvas.style.width = '100%';
+      gl.canvas.style.height = '100%';
+      gl.canvas.style.display = 'block';
+      container.appendChild(gl.canvas);
+
+      const vertex = `
+        attribute vec2 position;
+        attribute vec2 uv;
+        varying vec2 vUv;
+        void main() { vUv = uv; gl_Position = vec4(position, 0.0, 1.0); }
+      `;
+      const fragment = `
+        precision highp float;
+        uniform vec3 iResolution;
+        uniform vec2 iMouse;
+        uniform float iTime;
+        varying vec2 vUv;
+
+        vec3 palette(float h) {
+          if (h < 0.333333) return vec3(0.403922, 0.631373, 1.0);
+          if (h < 0.666666) return vec3(0.015686, 0.0, 0.078431);
+          return vec3(1.0, 1.0, 0.996078);
+        }
+        vec3 tanhv(vec3 x) {
+          vec3 e = exp(-2.0 * x); return (1.0 - e) / (1.0 + e);
+        }
+        vec2 sceneC(vec2 frag, vec2 r) {
+          vec2 P = (frag + frag - r) / r.x;
+          float z = 0.0; float d = 1e3; vec4 O = vec4(0.0);
+          for (int k = 0; k < 39; k++) {
+            if (d <= 1e-4) break;
+            O = z * normalize(vec4(P, 2.2, 0.0)) - vec4(0.0, 4.0, 1.0, 0.0) / 4.5;
+            d = 1.0 - sqrt(length(O * O)); z += d;
+          }
+          return vec2(O.x, atan(O.z, O.y));
+        }
+        void main() {
+          vec2 r = iResolution.xy;
+          vec2 C = vUv * r;
+          vec2 uv0 = (C + C - r) / r.x;
+          float T = 0.1 * iTime * 0.5 + 9.0;
+          float angRings = floor(6.28318530718 * 0.6 + 0.5);
+          vec2 Y = vec2(5e-3, 6.28318530718 / max(1.0, angRings));
+          vec2 c0 = sceneC(C, r);
+          vec2 cdx = sceneC(C + vec2(1.0, 0.0), r);
+          vec2 cdy = sceneC(C + vec2(0.0, 1.0), r);
+          vec2 dCx = cdx - c0;
+          vec2 dCy = cdy - c0;
+          dCx.y -= 6.28318530718 * floor(dCx.y / 6.28318530718 + 0.5);
+          dCy.y -= 6.28318530718 * floor(dCy.y / 6.28318530718 + 0.5);
+          vec2 fw = abs(dCx) + abs(dCy);
+          C = c0;
+          vec2 P = vec2(2.0, 1.0) * uv0 - (r / r.x) * vec2(0.0, 1.0);
+          vec4 O = vec4(vec3(0.0) * 90.0 * 0.3 / (1e3 * dot(P, P) + 6.0), 0.0);
+          vec2 mN = (iMouse + iMouse - r) / r.x;
+          float md = length(uv0 - mN);
+          float mGlow = exp(-md * md / max(0.7 * 0.7, 1e-4)) * 0.5;
+          O.rgb += vec3(0.473203, 0.543791, 0.691503) * mGlow * 0.25;
+          float zr = 5e-4 * 0.8;
+          vec2 rr = vec2(max(length(fw), 1e-5));
+          float tail = 19.0 / 0.8;
+          for (int m = 0; m < 16; m++) {
+            if (m >= 2) break;
+            float jf = float(m) + 1.0;
+            float ic = fract(sin(dot(vec2(jf, floor(C.x / Y.x + 0.5)), vec2(7.0, 11.0)) * 73.0));
+            vec2 Pp = C - (T + T * ic) * vec2(0.0, 1.0);
+            Pp -= floor(Pp / Y + 0.5) * Y;
+            float h = fract(8663.0 * ic);
+            vec3 col = palette(h);
+            float weight = mix(1.5, 1.0 + sin(T + 7.0 * h + 4.0), 0.85);
+            weight *= 1.0 + mGlow * 2.0;
+            vec2 inner = vec2(length(max(Pp, vec2(-1.0, 0.0))), length(Pp) - zr) - zr;
+            vec2 sm = vec2(1.0) - smoothstep(-rr, rr, inner);
+            O.rgb += dot(sm, vec2(exp(tail * Pp.y), 3.0)) * col * weight;
+            C.x += Y.x / 8.0;
+          }
+          vec3 color = sqrt(tanhv(max(O.rgb * 0.8 - vec3(0.04, 0.08, 0.02), 0.0)));
+          gl_FragColor = vec4(color, 0.55);
+        }
+      `;
+
+      const uniforms = {
+        iResolution: { value: [gl.drawingBufferWidth, gl.drawingBufferHeight, 1] },
+        iMouse: { value: [0, 0] },
+        iTime: { value: 0 }
+      };
+      const program = new Program(gl, { vertex, fragment, uniforms });
+      const mesh = new Mesh(gl, { geometry: new Triangle(gl), program });
+      const mouseTarget = [0, 0];
+      let lastTime = 0;
+
+      const resize = () => {
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        uniforms.iResolution.value = [gl.drawingBufferWidth, gl.drawingBufferHeight, 1];
+      };
+      window.addEventListener('resize', resize);
+      resize();
+
+      window.addEventListener('pointermove', event => {
+        const dpr = renderer.dpr || 1;
+        mouseTarget[0] = event.clientX * dpr;
+        mouseTarget[1] = (window.innerHeight - event.clientY) * dpr;
+      });
+
+      const render = t => {
+        requestAnimationFrame(render);
+        if (!container.classList.contains('active')) return;
+        if (!lastTime) lastTime = t;
+        const dt = (t - lastTime) / 1000;
+        lastTime = t;
+        const factor = 1 - Math.exp(-dt / 0.15);
+        uniforms.iMouse.value[0] += (mouseTarget[0] - uniforms.iMouse.value[0]) * factor;
+        uniforms.iMouse.value[1] += (mouseTarget[1] - uniforms.iMouse.value[1]) * factor;
+        uniforms.iTime.value = reduceMotion ? 0 : t * 0.001;
+        renderer.render({ scene: mesh });
+      };
+      requestAnimationFrame(render);
+    }
+
+    createLightning(lightningCanvas);
+    createLightfall(lightfallContainer);
+
+    const effectLayers = [...document.querySelectorAll('.effect-layer')];
+    const effectButtons = [...document.querySelectorAll('.effect-button')];
+    const validEffects = new Set(['orb', 'lightning', 'lightfall']);
+
+    function activateEffect(effect, remember = true) {
+      const safeEffect = validEffects.has(effect) ? effect : 'orb';
+      effectLayers.forEach(layer => layer.classList.toggle('active', layer.id === safeEffect));
+      effectButtons.forEach(button => {
+        const active = button.dataset.effect === safeEffect;
+        button.classList.toggle('active', active);
+        button.setAttribute('aria-pressed', String(active));
+      });
+      if (remember) localStorage.setItem('unlimited-power-background', safeEffect);
+    }
+
+    effectButtons.forEach(button => {
+      button.addEventListener('click', () => activateEffect(button.dataset.effect));
+    });
+    activateEffect(localStorage.getItem('unlimited-power-background') || 'orb', false);
+
+    const tagline = document.getElementById('tagline');
+    const animatedTagline = document.getElementById('tagline-animated');
+    const taglineText = 'building the future  ·  ·  ·';
+    const scrambleChars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789!@#$%&*';
+    let decryptTimer = null;
+
+    function decryptTagline() {
+      if (reduceMotion) {
+        animatedTagline.textContent = taglineText;
+        return;
+      }
+      clearInterval(decryptTimer);
+      let revealed = 0;
+      decryptTimer = setInterval(() => {
+        animatedTagline.textContent = [...taglineText].map((char, index) => {
+          if (char === ' ' || index < revealed) return char;
+          return scrambleChars[Math.floor(Math.random() * scrambleChars.length)];
+        }).join('');
+        revealed += 1;
+        if (revealed > taglineText.length) {
+          clearInterval(decryptTimer);
+          animatedTagline.textContent = taglineText;
+        }
+      }, 45);
+    }
+
+    tagline.addEventListener('pointerenter', decryptTagline);
+    window.addEventListener('load', decryptTagline, { once: true });
   </script>
 </body>
 </html>
