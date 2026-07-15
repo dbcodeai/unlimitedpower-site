@@ -62,17 +62,16 @@
     }
 
     .logo {
-      width: min(216px, 26vw);
+      width: min(281px, 34vw);
       display: block;
     }
 
     .tagline {
-      color: rgba(255, 255, 255, 0.3);
+      color: #fff;
       font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-      font-size: 10px;
+      font-size: 13px;
       font-weight: 400;
-      letter-spacing: 0.22em;
-      text-transform: lowercase;
+      letter-spacing: 0.16em;
       white-space: nowrap;
       pointer-events: auto;
       cursor: default;
@@ -139,7 +138,13 @@
 
     @media (max-width: 520px) {
       .effect-button { padding: 8px 11px; font-size: 9px; }
-      .tagline { font-size: 9px; letter-spacing: 0.16em; }
+      .tagline { font-size: 11px; letter-spacing: 0.12em; }
+    }
+
+    #lightning,
+    #lightfall,
+    .effect-switcher {
+      display: none;
     }
 
     @media (prefers-reduced-motion: reduce) {
@@ -156,8 +161,8 @@
   <div class="center-stack">
     <img class="logo" src="assets/UP-Logo-white.svg" alt="Unlimited Power X">
     <div class="tagline" id="tagline">
-      <span class="sr-only">building the future · · ·</span>
-      <span id="tagline-animated" aria-hidden="true">building the future&nbsp;&nbsp;·&nbsp;&nbsp;·&nbsp;&nbsp;·</span>
+      <span class="sr-only">Building your future...</span>
+      <span id="tagline-animated" aria-hidden="true">Building your future...</span>
     </div>
   </div>
 
@@ -695,13 +700,15 @@
     effectButtons.forEach(button => {
       button.addEventListener('click', () => activateEffect(button.dataset.effect));
     });
-    activateEffect(localStorage.getItem('unlimited-power-background') || 'orb', false);
+    localStorage.removeItem('unlimited-power-background');
+    activateEffect('orb', false);
 
     const tagline = document.getElementById('tagline');
     const animatedTagline = document.getElementById('tagline-animated');
-    const taglineText = 'building the future  ·  ·  ·';
+    const taglineText = 'Building your future...';
     const scrambleChars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789!@#$%&*';
     let decryptTimer = null;
+    let decryptLoop = null;
 
     function decryptTagline() {
       if (reduceMotion) {
@@ -709,22 +716,26 @@
         return;
       }
       clearInterval(decryptTimer);
-      let revealed = 0;
+      let iteration = 0;
       decryptTimer = setInterval(() => {
         animatedTagline.textContent = [...taglineText].map((char, index) => {
-          if (char === ' ' || index < revealed) return char;
+          const revealedFromEnd = index >= taglineText.length - iteration;
+          if (char === ' ' || revealedFromEnd) return char;
           return scrambleChars[Math.floor(Math.random() * scrambleChars.length)];
         }).join('');
-        revealed += 1;
-        if (revealed > taglineText.length) {
+        iteration += 1;
+        if (iteration >= 18) {
           clearInterval(decryptTimer);
           animatedTagline.textContent = taglineText;
         }
-      }, 45);
+      }, 80);
     }
 
     tagline.addEventListener('pointerenter', decryptTagline);
-    window.addEventListener('load', decryptTagline, { once: true });
+    window.addEventListener('load', () => {
+      decryptTagline();
+      if (!reduceMotion) decryptLoop = setInterval(decryptTagline, 4000);
+    }, { once: true });
   </script>
 </body>
 </html>
