@@ -67,7 +67,7 @@
     }
 
     .tagline {
-      color: #fff;
+      color: #d9d9de;
       font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
       font-size: 13px;
       font-weight: 400;
@@ -75,6 +75,19 @@
       white-space: nowrap;
       pointer-events: auto;
       cursor: default;
+    }
+
+    .loading-dots span {
+      display: inline-block;
+      animation: loading-dot 1.4s infinite ease-in-out;
+    }
+
+    .loading-dots span:nth-child(2) { animation-delay: 0.18s; }
+    .loading-dots span:nth-child(3) { animation-delay: 0.36s; }
+
+    @keyframes loading-dot {
+      0%, 20%, 100% { opacity: 0.22; transform: translateY(0); }
+      50% { opacity: 1; transform: translateY(-1px); }
     }
 
     .effect-switcher {
@@ -149,6 +162,7 @@
 
     @media (prefers-reduced-motion: reduce) {
       .effect-layer { transition: none; }
+      .loading-dots span { animation: none; opacity: 1; }
     }
   </style>
 </head>
@@ -162,7 +176,7 @@
     <img class="logo" src="assets/UP-Logo-white.svg" alt="Unlimited Power X">
     <div class="tagline" id="tagline">
       <span class="sr-only">Building your future...</span>
-      <span id="tagline-animated" aria-hidden="true">Building your future...</span>
+      <span id="tagline-animated" aria-hidden="true">Building your future</span><span class="loading-dots" aria-hidden="true"><span>.</span><span>.</span><span>.</span></span>
     </div>
   </div>
 
@@ -705,7 +719,7 @@
 
     const tagline = document.getElementById('tagline');
     const animatedTagline = document.getElementById('tagline-animated');
-    const taglineText = 'Building your future...';
+    const taglineText = 'Building your future';
     const scrambleChars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789!@#$%&*';
     let decryptTimer = null;
     let decryptLoop = null;
@@ -734,7 +748,7 @@
     tagline.addEventListener('pointerenter', decryptTagline);
     window.addEventListener('load', () => {
       decryptTagline();
-      if (!reduceMotion) decryptLoop = setInterval(decryptTagline, 4000);
+      if (!reduceMotion) decryptLoop = setInterval(decryptTagline, 10000);
     }, { once: true });
   </script>
 </body>
