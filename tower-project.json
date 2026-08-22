@@ -1,0 +1,18 @@
+{
+  "schema_version": 1,
+  "project_id": "unlimitedpower-site",
+  "name": "Unlimited Power Site",
+  "class": "site",
+  "profile": "site",
+  "owner_desk_id": "pepper",
+  "repository": {
+    "privacy": "private",
+    "canonical_root": "/Users/dan/GitHub/TowerProjects/unlimitedpower-site"
+  },
+  "library_topic": "/Users/dan/GitHub/Tower-Library/004 - Tower Filesystem Constitution",
+  "services": [],
+  "runtime_state": [],
+  "dependencies": [],
+  "pointers": [],
+  "waivers": []
+}
