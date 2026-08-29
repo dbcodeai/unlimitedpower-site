@@ -20,12 +20,41 @@ body,
   background: #000;
 }
 
+.stage,
+.effects,
+.effect-layer {
+  position: absolute;
+  inset: 0;
+}
+
 .stage {
   min-height: 100dvh;
+  isolation: isolate;
   background: #000;
 }
 
+.effects {
+  z-index: 0;
+}
+
+.effect-layer {
+  opacity: 0;
+  will-change: opacity;
+}
+
+.effect-layer.is-entering {
+  z-index: 2;
+  animation: effect-enter 1s ease forwards;
+}
+
+.effect-layer.is-leaving {
+  z-index: 1;
+  animation: effect-leave 1s ease forwards;
+}
+
 .brand {
+  position: relative;
+  z-index: 3;
   width: 100%;
   height: 100%;
   display: flex;
@@ -34,6 +63,17 @@ body,
   justify-content: center;
   gap: 24px;
   pointer-events: none;
+}
+
+.brand::before {
+  content: "";
+  position: absolute;
+  z-index: -1;
+  width: min(520px, 82vw);
+  height: min(230px, 34vh);
+  border-radius: 50%;
+  background: radial-gradient(ellipse, rgba(0, 0, 0, 0.88) 0%, rgba(0, 0, 0, 0.62) 38%, rgba(0, 0, 0, 0.16) 66%, transparent 78%);
+  filter: blur(8px);
 }
 
 .logo {
@@ -62,6 +102,16 @@ body,
 
 .loading-dots span:nth-child(3) {
   animation-delay: 0.36s;
+}
+
+@keyframes effect-enter {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes effect-leave {
+  from { opacity: 1; }
+  to { opacity: 0; }
 }
 
 @keyframes loading-dot {
@@ -102,8 +152,9 @@ body,
 }
 
 @media (prefers-reduced-motion: reduce) {
+  .effect-layer.is-entering,
+  .effect-layer.is-leaving,
   .loading-dots span {
-    animation: none;
-    opacity: 1;
+    animation-duration: 0.01ms;
   }
 }
