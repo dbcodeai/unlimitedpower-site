@@ -54,7 +54,7 @@
   <script>
     // Logging endpoint: Cloudflare Worker (workers/pitch-log). Empty string = logging
     // inert until the Worker is deployed; playback must never depend on it.
-    var LOG_ENDPOINT = "";
+    var LOG_ENDPOINT = "https://upx-pitch-log.dannyblumenfeld.workers.dev/log";
 
     var sid = Math.random().toString(36).slice(2) + Date.now().toString(36);
     var email = "";
