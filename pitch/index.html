@@ -112,11 +112,11 @@
       }
     });
     setInterval(function () {
-      if (lastTick) log("watch_heartbeat", { seconds: Math.round(watched) });
+      if (lastTick) log("watch_heartbeat", { seconds: Math.round(watched), position: Math.round(video.currentTime || 0), duration: Math.round(video.duration || 0) });
     }, 15000);
     window.addEventListener("pagehide", function () {
       flushTime();
-      log("watch_end", { seconds: Math.round(watched), position: Math.round(video.currentTime || 0) });
+      log("watch_end", { seconds: Math.round(watched), position: Math.round(video.currentTime || 0), duration: Math.round(video.duration || 0) });
     });
 
     log("gate_view");

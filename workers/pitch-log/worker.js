@@ -1,13 +1,17 @@
 // upx-pitch-log — logging backend for unlimitedpower.ai/pitch
-// POST /log   : append one event (email_submitted, video_start, video_progress,
-//               watch_heartbeat, watch_end, gate_view) into D1.
+// POST /log     : append one event (email_submitted, video_start, video_progress,
+//                 watch_heartbeat, watch_end, gate_view) into D1.
+// GET  /viewers : per-email aggregation (email, ip, watch %, sessions, last seen).
+//                 Basic Auth — user VIEW_USER (var), password VIEW_PASS (secret).
 // GET  /export?key=<EXPORT_KEY> : CSV of all events, newest first.
 // Deploy (after `wrangler login`):
 //   npx wrangler d1 create upx-pitch-log            # put returned id in wrangler.toml
 //   npx wrangler d1 execute upx-pitch-log --remote --file=schema.sql
 //   npx wrangler secret put EXPORT_KEY
+//   npx wrangler secret put VIEW_PASS
 //   npx wrangler deploy
-// Then set LOG_ENDPOINT in pitch/index.html to the deployed URL + /log.
+// Then set LOG_ENDPOINT in pitch/index.html and VIEWERS_ENDPOINT in
+// pitch/viewers/index.html to the deployed URL + /log and + /viewers.
 
 const ALLOWED_ORIGINS = ["https://unlimitedpower.ai", "https://www.unlimitedpower.ai"];
 
@@ -15,10 +19,43 @@ function cors(origin) {
   const allowed = ALLOWED_ORIGINS.includes(origin) ? origin : ALLOWED_ORIGINS[0];
   return {
     "Access-Control-Allow-Origin": allowed,
-    "Access-Control-Allow-Methods": "POST, OPTIONS",
-    "Access-Control-Allow-Headers": "Content-Type",
+    "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
+    "Access-Control-Allow-Headers": "Content-Type, Authorization",
   };
 }
+
+// Basic Auth against VIEW_USER (var, default "upx") + VIEW_PASS (secret).
+// Split on the FIRST colon only — passwords may contain colons.
+// No VIEW_PASS configured = deny everything, never allow-by-default.
+function authorized(request, env) {
+  const h = request.headers.get("Authorization") || "";
+  if (!h.startsWith("Basic ")) return false;
+  let decoded = "";
+  try { decoded = atob(h.slice(6)); } catch (e) { return false; }
+  const i = decoded.indexOf(":");
+  if (i < 0) return false;
+  const user = decoded.slice(0, i);
+  const pass = decoded.slice(i + 1);
+  return Boolean(env.VIEW_PASS) && user === (env.VIEW_USER || "upx") && pass === env.VIEW_PASS;
+}
+
+const VIEWERS_SQL = `
+  SELECT email,
+    MAX(ts) AS last_seen,
+    COUNT(DISTINCT session) AS sessions,
+    MAX(CASE WHEN type = 'video_progress'
+          THEN CAST(json_extract(data, '$.pct') AS INTEGER) ELSE 0 END) AS milestone_pct,
+    MAX(CASE WHEN CAST(json_extract(data, '$.duration') AS REAL) > 0
+          THEN CAST(ROUND(100.0 * CAST(json_extract(data, '$.position') AS REAL)
+                          / CAST(json_extract(data, '$.duration') AS REAL)) AS INTEGER)
+          ELSE 0 END) AS position_pct,
+    (SELECT ip FROM events e2 WHERE e2.email = events.email AND e2.ip != ''
+       ORDER BY e2.id DESC LIMIT 1) AS ip
+  FROM events
+  WHERE email != ''
+  GROUP BY email
+  ORDER BY last_seen DESC
+  LIMIT 500`;
 
 export default {
   async fetch(request, env) {
@@ -44,6 +81,22 @@ export default {
         request.headers.get("CF-Connecting-IP") || ""
       ).run();
       return new Response("ok", { headers: cors(origin) });
+    }
+
+    if (request.method === "GET" && url.pathname === "/viewers") {
+      if (!authorized(request, env))
+        return new Response("unauthorized", { status: 401, headers: cors(origin) });
+      const { results } = await env.DB.prepare(VIEWERS_SQL).all();
+      const rows = results.map((r) => ({
+        email: r.email,
+        ip: r.ip || "",
+        watch_pct: Math.min(100, Math.max(r.milestone_pct || 0, r.position_pct || 0)),
+        sessions: r.sessions,
+        last_seen: r.last_seen,
+      }));
+      return new Response(JSON.stringify(rows), {
+        headers: { "Content-Type": "application/json", ...cors(origin) },
+      });
     }
 
     if (request.method === "GET" && url.pathname === "/export") {

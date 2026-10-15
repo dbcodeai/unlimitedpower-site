@@ -2,6 +2,10 @@ name = "upx-pitch-log"
 main = "worker.js"
 compatibility_date = "2026-10-01"
 
+[vars]
+VIEW_USER = "upx"
+# VIEW_PASS is a secret, never committed: npx wrangler secret put VIEW_PASS
+
 [[d1_databases]]
 binding = "DB"
 database_name = "upx-pitch-log"
