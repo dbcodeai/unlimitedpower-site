@@ -10,4 +10,4 @@ VIEW_USER = "upx"
 binding = "DB"
 database_name = "upx-pitch-log"
 # Replace after `wrangler d1 create upx-pitch-log`:
-database_id = "REPLACE_WITH_D1_ID"
+database_id = "95fc12cc-4713-4136-a78a-f62ef13b279c"
