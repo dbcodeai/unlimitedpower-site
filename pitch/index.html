@@ -1,0 +1,126 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="theme-color" content="#000000" />
+  <meta name="robots" content="noindex, nofollow" />
+  <meta name="description" content="Unlimited Power — Investor Pitch" />
+  <link rel="icon" href="data:," />
+  <title>Unlimited Power — Pitch</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    html, body { height: 100%; background: #000; color: #f5f5f5;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; }
+    .stage { position: fixed; inset: 0; display: flex; align-items: center; justify-content: center; }
+    /* ---- email gate ---- */
+    #gate { flex-direction: column; gap: 28px; padding: 0 16px; text-align: center; }
+    #gate img { width: 64px; height: 64px; opacity: .92; }
+    #gate h1 { font-size: 22px; font-weight: 600; letter-spacing: .04em; }
+    #gate p { font-size: 14px; color: #9a9a9a; max-width: 420px; line-height: 1.5; }
+    #gate form { display: flex; gap: 10px; flex-wrap: wrap; justify-content: center; width: 100%; max-width: 440px; }
+    #gate input[type=email] {
+      flex: 1 1 260px; padding: 13px 16px; font-size: 15px; border-radius: 8px;
+      border: 1px solid #2e2e2e; background: #111; color: #f5f5f5; outline: none; min-width: 0;
+    }
+    #gate input[type=email]:focus { border-color: #6a6a6a; }
+    #gate button {
+      padding: 13px 26px; font-size: 15px; font-weight: 600; border-radius: 8px; border: none;
+      background: #f5f5f5; color: #000; cursor: pointer;
+    }
+    #gate button:hover { background: #fff; }
+    #gate .err { color: #ff6b6b; font-size: 13px; min-height: 18px; }
+    /* ---- video ---- */
+    #player { display: none; background: #000; }
+    #player video { width: 100vw; height: 100vh; object-fit: contain; background: #000; }
+  </style>
+</head>
+<body>
+  <div class="stage" id="gate">
+    <img src="/assets/UP-Logo-white.svg" alt="Unlimited Power" />
+    <h1>Investor Pitch</h1>
+    <p>Enter your email to watch the Unlimited Power investor presentation.</p>
+    <form id="gateForm" novalidate>
+      <input type="email" id="email" placeholder="you@company.com" autocomplete="email" required />
+      <button type="submit">Watch</button>
+    </form>
+    <div class="err" id="err"></div>
+  </div>
+
+  <div class="stage" id="player">
+    <video id="video" src="/pitch/media/upx-184c21992066.mp4" controls playsinline preload="auto"></video>
+  </div>
+
+  <script>
+    // Logging endpoint: Cloudflare Worker (workers/pitch-log). Empty string = logging
+    // inert until the Worker is deployed; playback must never depend on it.
+    var LOG_ENDPOINT = "";
+
+    var sid = Math.random().toString(36).slice(2) + Date.now().toString(36);
+    var email = "";
+    try { email = localStorage.getItem("upx_pitch_email") || ""; } catch (e) {}
+
+    function log(type, data) {
+      if (!LOG_ENDPOINT) return;
+      var payload = JSON.stringify({
+        type: type, data: data || {}, email: email, session: sid,
+        ts: new Date().toISOString(), page: location.pathname, ua: navigator.userAgent
+      });
+      try {
+        if (navigator.sendBeacon && navigator.sendBeacon(LOG_ENDPOINT, new Blob([payload], { type: "application/json" }))) return;
+      } catch (e) {}
+      try { fetch(LOG_ENDPOINT, { method: "POST", body: payload, keepalive: true, headers: { "Content-Type": "application/json" } }).catch(function () {}); } catch (e) {}
+    }
+
+    var gate = document.getElementById("gate");
+    var player = document.getElementById("player");
+    var video = document.getElementById("video");
+    var err = document.getElementById("err");
+
+    function showPlayer() {
+      gate.style.display = "none";
+      player.style.display = "flex";
+      var p = video.play();
+      if (p && p.catch) p.catch(function () { /* user presses play manually */ });
+    }
+
+    document.getElementById("gateForm").addEventListener("submit", function (ev) {
+      ev.preventDefault();
+      var v = document.getElementById("email").value.trim();
+      if (!/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(v)) { err.textContent = "Please enter a valid email address."; return; }
+      err.textContent = "";
+      email = v;
+      try { localStorage.setItem("upx_pitch_email", v); } catch (e) {}
+      log("email_submitted");
+      showPlayer();
+    });
+
+    // Watch measurement: cumulative played seconds, progress milestones, final beacon.
+    var watched = 0, lastTick = null, milestones = {};
+    video.addEventListener("play", function () { lastTick = Date.now(); if (!milestones.start) { milestones.start = 1; log("video_start"); } });
+    video.addEventListener("pause", flushTime);
+    function flushTime() {
+      if (lastTick) { watched += (Date.now() - lastTick) / 1000; lastTick = null; }
+    }
+    video.addEventListener("timeupdate", function () {
+      if (lastTick) { var now = Date.now(); watched += (now - lastTick) / 1000; lastTick = now; }
+      if (video.duration) {
+        var pct = Math.floor((video.currentTime / video.duration) * 100);
+        [25, 50, 75, 95].forEach(function (m) {
+          if (pct >= m && !milestones[m]) { milestones[m] = 1; log("video_progress", { pct: m }); }
+        });
+      }
+    });
+    setInterval(function () {
+      if (lastTick) log("watch_heartbeat", { seconds: Math.round(watched) });
+    }, 15000);
+    window.addEventListener("pagehide", function () {
+      flushTime();
+      log("watch_end", { seconds: Math.round(watched), position: Math.round(video.currentTime || 0) });
+    });
+
+    log("gate_view");
+    if (email) { document.getElementById("email").value = email; }
+  </script>
+</body>
+</html>

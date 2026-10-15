@@ -1,0 +1,9 @@
+name = "upx-pitch-log"
+main = "worker.js"
+compatibility_date = "2026-10-01"
+
+[[d1_databases]]
+binding = "DB"
+database_name = "upx-pitch-log"
+# Replace after `wrangler d1 create upx-pitch-log`:
+database_id = "REPLACE_WITH_D1_ID"
