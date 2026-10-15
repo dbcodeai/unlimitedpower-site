@@ -12,7 +12,16 @@
     * { margin: 0; padding: 0; box-sizing: border-box; }
     html, body { height: 100%; background: #000; color: #f5f5f5;
       font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; }
+    ::selection { background: rgba(82,39,255,.55); color: #fff; }
+    input { caret-color: #a996ff; }
     .stage { display: flex; align-items: center; justify-content: center; }
+    /* one authored moment: the homepage's violet orb, breathing slowly behind the gate */
+    #gate { position: relative; isolation: isolate; }
+    #gate::before { content: ""; position: fixed; inset: 0; z-index: -1; pointer-events: none;
+      background: radial-gradient(42vmax 34vmax at 50% 38%, rgba(82,39,255,.30), rgba(66,252,255,.06) 48%, transparent 72%);
+      animation: breathe 9s cubic-bezier(.22,1,.36,1) infinite alternate; }
+    @keyframes breathe { from { opacity: .55; transform: scale(.96); } to { opacity: 1; transform: scale(1.04); } }
+    @media (prefers-reduced-motion: reduce) { #gate::before { animation: none; opacity: .8; } }
     .sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
     /* ---- email gate: in-flow (not fixed) so a short landscape phone or an open
        keyboard can still scroll to the button; dvh tracks the phone's toolbars ---- */
@@ -21,7 +30,7 @@
                max(32px, env(safe-area-inset-bottom)) max(16px, env(safe-area-inset-left)); }
     #gate img { width: 64px; height: 64px; opacity: .92; }
     #gate h1 { font-size: 22px; font-weight: 600; letter-spacing: .04em; }
-    #gate p { font-size: 15px; color: #9a9a9a; max-width: 420px; line-height: 1.5; }
+    #gate p { font-size: 16px; color: #9a9a9a; max-width: 420px; line-height: 1.5; }
     #gate form { display: flex; gap: 10px; flex-wrap: wrap; justify-content: center; width: 100%; max-width: 440px; }
     /* 16px minimum: anything smaller makes iPhone Safari zoom the page on focus */
     #gate input[type=email] {
@@ -38,9 +47,9 @@
     #gate button[type=submit]:disabled { opacity: .6; cursor: default; }
     #gate button:focus-visible, #gate input:focus-visible { outline: 2px solid #fff; outline-offset: 2px; }
     #gate .err { color: #ff6b6b; font-size: 14px; line-height: 1.45; min-height: 20px; max-width: 440px; }
-    #gate .suggest { display: none; font-size: 15px; color: #d5d5d5; line-height: 1.5; max-width: 440px; }
+    #gate .suggest { display: none; font-size: 16px; color: #d5d5d5; line-height: 1.5; max-width: 440px; }
     #gate .suggest b { color: #fff; font-weight: 600; overflow-wrap: anywhere; }
-    #gate .suggest button { min-height: 44px; margin: 6px 4px 0; padding: 8px 16px; font-size: 15px;
+    #gate .suggest button { min-height: 44px; margin: 6px 4px 0; padding: 8px 16px; font-size: 16px;
       font-weight: 600; border-radius: 8px; cursor: pointer; font-family: inherit; }
     #useSuggest { background: #f5f5f5; color: #000; border: none; }
     #keepMine { background: transparent; color: #d5d5d5; border: 1px solid #3a3a3a; }
@@ -55,18 +64,34 @@
        a full-height picture would need, so it fits upright phones, landscape and desktop. ---- */
     #player { display: none; position: fixed; inset: 0; background: #000; flex-direction: column;
       padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left); }
-    #player .frame { --bar: 60px; width: 100%;
-      width: min(100%, calc((100vh - var(--bar) - env(safe-area-inset-top) - env(safe-area-inset-bottom)) * 16 / 9));
-      width: min(100%, calc((100dvh - var(--bar) - env(safe-area-inset-top) - env(safe-area-inset-bottom)) * 16 / 9)); }
-    #player .bar { height: var(--bar); display: flex; align-items: center; justify-content: flex-end; padding: 0 8px; }
+    #player .frame { --bar: 60px; --gut: 0px; --vgut: 0px; width: 100%;
+      width: min(calc(100% - 2 * var(--gut)), calc((100vh - var(--bar) - var(--vgut) - env(safe-area-inset-top) - env(safe-area-inset-bottom)) * 16 / 9));
+      width: min(calc(100% - 2 * var(--gut)), calc((100dvh - var(--bar) - var(--vgut) - env(safe-area-inset-top) - env(safe-area-inset-bottom)) * 16 / 9)); }
+    /* wide screens: the picture floats with breathing room instead of touching the edges */
+    @media (min-width: 720px) { #player .frame { --gut: 40px; --vgut: 64px; } }
+    #player .bar { height: var(--bar); display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 0 12px; }
+    #player .mark { display: flex; align-items: center; gap: 10px; min-width: 0; color: #9a9a9a; font-size: 14px;
+      font-weight: 500; letter-spacing: .02em; white-space: nowrap; }
+    #player .mark img { height: 22px; width: auto; opacity: .92; flex: none; }
+    #player .mark span { padding-left: 12px; border-left: 1px solid #2e2e2e; }
+    #player .mark span { overflow: hidden; text-overflow: ellipsis; }
+    @media (max-width: 420px) { #player .mark span { display: none; } }
     #player video { display: block; width: 100%; height: auto; aspect-ratio: 16 / 9; background: #000; }
+    @media (min-width: 720px) {
+      #player .bar { padding: 0 2px; }
+      #player video { border-radius: 14px; box-shadow: 0 30px 60px -24px rgba(0,0,0,.9), 0 0 0 1px rgba(255,255,255,.06); }
+    }
     #player video::cue { background: rgba(0,0,0,.72); color: #fff; }
     #exitBtn {
-      min-height: 44px; line-height: 20px; padding: 11px 18px; border-radius: 999px;
+      display: inline-flex; align-items: center; gap: 8px; flex: none;
+      min-height: 44px; line-height: 20px; padding: 11px 18px 11px 15px; border-radius: 999px;
       background: rgba(255,255,255,.12); border: 1px solid rgba(255,255,255,.24); color: #fff;
       font-size: 14px; font-weight: 600; text-decoration: none; letter-spacing: .01em;
     }
+    #exitBtn svg { width: 14px; height: 14px; flex: none; }
+    #exitBtn { transition: background-color .2s cubic-bezier(.22,1,.36,1); }
     #exitBtn:hover, #exitBtn:focus-visible { background: rgba(255,255,255,.22); }
+    #exitBtn:active { background: rgba(255,255,255,.3); }
     #exitBtn:focus-visible { outline: 2px solid #fff; outline-offset: 3px; }
   </style>
   <script>
@@ -109,8 +134,14 @@
 
   <div class="stage" id="player">
     <div class="frame">
-      <div class="bar"><a id="exitBtn" href="/pitch/thanks/">&#10005;&nbsp; Exit video</a></div>
-      <video id="video" src="/pitch/media/upx-43745e45e8d5.mp4" controls playsinline preload="auto">
+      <div class="bar">
+        <div class="mark"><img src="/assets/UP-Logo-white.svg" alt="" /><span>Investor Presentation</span></div>
+        <a id="exitBtn" href="/pitch/thanks/"><svg viewBox="0 0 16 16" aria-hidden="true" fill="none" stroke="currentColor"
+          stroke-width="1.8" stroke-linecap="round"><path d="M3.5 3.5l9 9M12.5 3.5l-9 9"/></svg>Exit video</a>
+      </div>
+      <video id="video" src="/pitch/media/upx-43745e45e8d5.mp4" controls playsinline preload="auto" poster="/pitch/media/upx-43745e45e8d5-poster.jpg"
+             controlslist="nodownload noremoteplayback" disablepictureinpicture disableremoteplayback
+             aria-label="Unlimited Power investor presentation">
         <track kind="subtitles" srclang="en" label="English" src="/pitch/media/upx-43745e45e8d5.en.vtt" default />
       </video>
     </div>
@@ -149,7 +180,7 @@
     function showPlayer() {
       gate.style.display = "none";
       player.style.display = "flex";
-      document.getElementById("exitBtn").style.display = "inline-block";
+      document.getElementById("exitBtn").style.display = "inline-flex";
       var p = video.play();
       if (p && p.catch) p.catch(function () { /* user presses play manually */ });
     }
@@ -258,6 +289,7 @@
     var watched = 0, lastTick = null, milestones = {};
     video.addEventListener("play", function () { lastTick = Date.now(); if (!milestones.start) { milestones.start = 1; log("video_start"); } });
     video.addEventListener("pause", flushTime);
+    video.addEventListener("contextmenu", function (ev) { ev.preventDefault(); });
     function flushTime() {
       if (lastTick) { watched += (Date.now() - lastTick) / 1000; lastTick = null; }
     }

@@ -19,16 +19,40 @@
                max(32px, env(safe-area-inset-bottom)) max(16px, env(safe-area-inset-left)); }
     img.logo { width: 64px; height: 64px; opacity: .92; }
     h1 { font-size: clamp(20px, 5.6vw, 24px); font-weight: 600; letter-spacing: .04em; max-width: 520px; line-height: 1.35; }
-    p { font-size: 15px; color: #9a9a9a; max-width: 460px; line-height: 1.6; }
+    p { font-size: 16px; color: #9a9a9a; max-width: 460px; line-height: 1.6; }
     .contact {
-      display: inline-flex; align-items: center; min-height: 48px; padding: 12px 26px; font-size: 15px; font-weight: 600;
+      display: inline-flex; align-items: center; min-height: 48px; padding: 12px 26px; font-size: 16px; font-weight: 600;
       border-radius: 8px; background: #f5f5f5; color: #000; text-decoration: none;
     }
     .contact:hover { background: #fff; }
     .contact:focus-visible { outline: 2px solid #fff; outline-offset: 3px; }
-    .addr { font-size: 15px; color: #9a9a9a; line-height: 2; }
-    .addr a { color: #d5d5d5; text-decoration: none; border-bottom: 1px solid #3a3a3a; }
-    .addr a:hover { color: #fff; border-bottom-color: #8a8a8a; }
+    ::selection { background: rgba(82,39,255,.55); color: #fff; }
+    .stage { position: relative; isolation: isolate; }
+    /* the homepage's violet orb, breathing slowly behind the message */
+    .stage::before { content: ""; position: fixed; inset: 0; z-index: -1; pointer-events: none;
+      background: radial-gradient(42vmax 34vmax at 50% 40%, rgba(82,39,255,.28), rgba(66,252,255,.05) 48%, transparent 72%);
+      animation: breathe 9s cubic-bezier(.22,1,.36,1) infinite alternate; }
+    @keyframes breathe { from { opacity: .55; transform: scale(.96); } to { opacity: 1; transform: scale(1.04); } }
+    @media (prefers-reduced-motion: reduce) { .stage::before { animation: none; opacity: .8; } }
+    .contact { gap: 10px; transition: background-color .2s cubic-bezier(.22,1,.36,1); }
+    .contact svg, .copy svg { width: 18px; height: 18px; flex: none; }
+    .alt { display: flex; flex-direction: column; align-items: center; gap: 10px; width: 100%; max-width: 400px; }
+    .alt-label { font-size: 14px; color: #9a9a9a; }
+    .copybox { display: flex; align-items: center; width: 100%; min-height: 52px; padding: 4px 4px 4px 18px;
+      border-radius: 10px; background: rgba(255,255,255,.04); border: 1px solid #2e2e2e; }
+    .copybox .email { flex: 1; min-width: 0; text-align: left; font-size: 16px; color: #f5f5f5;
+      user-select: all; -webkit-user-select: all; overflow-wrap: anywhere; letter-spacing: .01em; }
+    .copy { display: inline-flex; align-items: center; justify-content: center; gap: 8px; flex: none;
+      min-height: 44px; min-width: 96px; padding: 10px 14px; border-radius: 8px; border: 1px solid #3a3a3a;
+      background: transparent; color: #f5f5f5; font: inherit; font-size: 14px; font-weight: 600; cursor: pointer;
+      transition: background-color .2s cubic-bezier(.22,1,.36,1), border-color .2s cubic-bezier(.22,1,.36,1), color .2s; }
+    .copy:hover { background: rgba(255,255,255,.08); border-color: #5a5a5a; }
+    .copy:active { background: rgba(255,255,255,.14); }
+    .copy:focus-visible { outline: 2px solid #fff; outline-offset: 2px; }
+    .copy .ok { display: none; }
+    .copy.done { color: #7dffb0; border-color: rgba(125,255,176,.45); }
+    .copy.done .ok { display: block; } .copy.done .ico { display: none; }
+    .hint { font-size: 14px; color: #9a9a9a; min-height: 18px; }
   </style>
   <script>
   // Self-heal stale caches: GitHub Pages pins cache-control at max-age=600 and custom
@@ -55,10 +79,21 @@
     <p>If what you saw sparked questions — or you&rsquo;d like to go deeper on the numbers,
        the product, or a live walkthrough — we&rsquo;d love to talk.</p>
     <a class="contact" id="emailBtn"
-       href="mailto:yuval@unlimitedpower.ai?subject=Unlimited%20Power%20Investor%20Presentation">
-       Email Yuval Rechter</a>
-    <div class="addr">or write to
-      <a href="mailto:yuval@unlimitedpower.ai?subject=Unlimited%20Power%20Investor%20Presentation">yuval@unlimitedpower.ai</a>
+       href="mailto:yuval@unlimitedpower.ai?subject=Unlimited%20Power%20Investor%20Presentation"><svg viewBox="0 0 20 20"
+       aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"><rect x="2.5" y="4.5"
+       width="15" height="11" rx="2"/><path d="M3 5.5l7 5.5 7-5.5"/></svg>Email Yuval Rechter</a>
+    <div class="alt">
+      <div class="alt-label" id="altLabel">Or copy and paste this email</div>
+      <div class="copybox" role="group" aria-labelledby="altLabel">
+        <span class="email" id="addr">yuval@unlimitedpower.ai</span>
+        <button type="button" class="copy" id="copyBtn" aria-describedby="hint">
+          <svg class="ico" viewBox="0 0 20 20" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.6"
+            stroke-linejoin="round"><rect x="7" y="7" width="10" height="10" rx="2"/><path d="M13 7V5a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v6a2 2 0 0 0 2 2h2"/></svg>
+          <svg class="ok" viewBox="0 0 20 20" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2"
+            stroke-linecap="round" stroke-linejoin="round"><path d="M4.5 10.5l3.5 3.5 7.5-8"/></svg>
+          <span id="copyText">Copy</span></button>
+      </div>
+      <div class="hint" id="hint" aria-live="polite"></div>
     </div>
   </div>
 
@@ -83,6 +118,32 @@
 
     log("thanks_view");
     document.getElementById("emailBtn").addEventListener("click", function () { log("contact_click"); });
+
+    // Copy: modern clipboard API first, then the legacy selection copy, then leave the
+    // address selected so the visitor can copy it by hand. Never claim a copy that failed.
+    var addr = document.getElementById("addr"), copyBtn = document.getElementById("copyBtn"),
+        copyText = document.getElementById("copyText"), hint = document.getElementById("hint"), resetTimer;
+    function selectAddr() {
+      var r = document.createRange(); r.selectNodeContents(addr);
+      var sel = window.getSelection(); sel.removeAllRanges(); sel.addRange(r);
+    }
+    function copied() {
+      copyBtn.classList.add("done"); copyText.textContent = "Copied"; hint.textContent = "Email address copied.";
+      log("contact_copy");
+      clearTimeout(resetTimer);
+      resetTimer = setTimeout(function () { copyBtn.classList.remove("done"); copyText.textContent = "Copy"; hint.textContent = ""; }, 2400);
+    }
+    function legacy() {
+      selectAddr();
+      var ok = false; try { ok = document.execCommand("copy"); } catch (e) {}
+      if (ok) { window.getSelection().removeAllRanges(); copied(); }
+      else { hint.textContent = "Selected — press Copy in your menu, or ⌘C / Ctrl+C."; }
+    }
+    copyBtn.addEventListener("click", function () {
+      var v = addr.textContent.trim();
+      if (navigator.clipboard && window.isSecureContext) navigator.clipboard.writeText(v).then(copied, legacy);
+      else legacy();
+    });
   </script>
 </body>
 </html>
