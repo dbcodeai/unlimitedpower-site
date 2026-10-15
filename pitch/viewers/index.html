@@ -31,6 +31,15 @@
     .msg { font-size: 13px; min-height: 18px; }
     .msg.err { color: #ff6b6b; }
     .msg.warn { color: #e8b44a; }
+    /* ---- control bar ---- */
+    #controls { display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 26px; }
+    .ctl { display: inline-flex; align-items: center; gap: 7px;
+      padding: 10px 16px; font-size: 13px; font-weight: 600; border-radius: 8px;
+      border: 1px solid #2e2e2e; background: #111; color: #f5f5f5; cursor: pointer;
+      text-decoration: none; font-family: inherit; line-height: 1; }
+    .ctl:hover { border-color: #6a6a6a; background: #161616; }
+    .ctl.primary { background: #f5f5f5; color: #000; border-color: #f5f5f5; }
+    .ctl.primary:hover { background: #fff; }
     /* ---- table ---- */
     #report { display: none; }
     #report header { display: flex; align-items: baseline; justify-content: space-between;
@@ -63,6 +72,11 @@
   </div>
 
   <div class="wrap" id="report">
+    <nav id="controls">
+      <a class="ctl primary" href="/pitch/">&#9654; Watch the video</a>
+      <button type="button" class="ctl" id="freshBtn" title="Clears your saved email so /pitch/ shows the sign-in gate like a first-time visitor">Sign-in gate &middot; fresh visitor</button>
+      <button type="button" class="ctl" id="refreshBtn">&#8635; Refresh table</button>
+    </nav>
     <header>
       <h1>Pitch Viewers</h1>
       <div class="sub" id="sub"></div>
@@ -139,6 +153,26 @@
       ev.preventDefault();
       msg.textContent = "";
       load(document.getElementById("user").value.trim(), document.getElementById("pass").value);
+    });
+
+    // Control bar: fresh-visitor view clears the saved email (same origin as /pitch/),
+    // so the gate page greets you like a first-timer instead of pre-filling.
+    document.getElementById("freshBtn").addEventListener("click", function () {
+      try { localStorage.removeItem("upx_pitch_email"); } catch (e) {}
+      location.href = "/pitch/";
+    });
+    document.getElementById("refreshBtn").addEventListener("click", function () {
+      var saved = null;
+      try { saved = sessionStorage.getItem("upx_viewers_auth"); } catch (e) {}
+      if (!saved) {
+        report.style.display = "none";
+        login.style.display = "flex";
+        fail("Session expired — sign in again.", "warn");
+        return;
+      }
+      var parts = atob(saved);
+      var i = parts.indexOf(":");
+      if (i > 0) load(parts.slice(0, i), parts.slice(i + 1));
     });
 
     // Re-use this tab's session if it already signed in.
