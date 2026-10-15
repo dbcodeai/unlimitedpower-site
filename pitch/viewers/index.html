@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
   <meta name="theme-color" content="#000000" />
   <meta name="robots" content="noindex, nofollow" />
   <link rel="icon" href="data:," />
@@ -11,30 +11,34 @@
     * { margin: 0; padding: 0; box-sizing: border-box; }
     html, body { min-height: 100%; background: #000; color: #f5f5f5;
       font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; }
-    .wrap { max-width: 860px; margin: 0 auto; padding: 48px 16px; }
+    .wrap { max-width: 1040px; margin: 0 auto;
+      padding: max(40px, env(safe-area-inset-top)) max(16px, env(safe-area-inset-right))
+               max(40px, env(safe-area-inset-bottom)) max(16px, env(safe-area-inset-left)); }
     /* ---- login ---- */
     #login { display: flex; flex-direction: column; align-items: center; gap: 24px;
-      min-height: 100vh; justify-content: center; text-align: center; padding: 0 16px; }
+      min-height: 100vh; min-height: 100dvh; justify-content: center; text-align: center; padding: 32px 16px; }
     #login img { width: 56px; height: 56px; opacity: .92; }
     #login h1 { font-size: 20px; font-weight: 600; letter-spacing: .04em; }
     #login form { display: flex; flex-direction: column; gap: 10px; width: 100%; max-width: 320px; }
+    /* 16px minimum: anything smaller makes iPhone Safari zoom the page on focus */
     #login input {
-      padding: 13px 16px; font-size: 15px; border-radius: 8px;
+      min-height: 48px; padding: 12px 16px; font-size: 16px; border-radius: 8px;
       border: 1px solid #2e2e2e; background: #111; color: #f5f5f5; outline: none;
     }
     #login input:focus { border-color: #6a6a6a; }
     #login button {
-      padding: 13px 26px; font-size: 15px; font-weight: 600; border-radius: 8px; border: none;
+      min-height: 48px; padding: 12px 26px; font-size: 16px; font-weight: 600; border-radius: 8px; border: none;
       background: #f5f5f5; color: #000; cursor: pointer;
     }
     #login button:hover { background: #fff; }
-    .msg { font-size: 13px; min-height: 18px; }
+    #login input:focus-visible, #login button:focus-visible, .ctl:focus-visible { outline: 2px solid #fff; outline-offset: 2px; }
+    .msg { font-size: 14px; min-height: 20px; }
     .msg.err { color: #ff6b6b; }
     .msg.warn { color: #e8b44a; }
     /* ---- control bar ---- */
     #controls { display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 26px; }
     .ctl { display: inline-flex; align-items: center; gap: 7px;
-      padding: 10px 16px; font-size: 13px; font-weight: 600; border-radius: 8px;
+      min-height: 44px; padding: 10px 16px; font-size: 14px; font-weight: 600; border-radius: 8px;
       border: 1px solid #2e2e2e; background: #111; color: #f5f5f5; cursor: pointer;
       text-decoration: none; font-family: inherit; line-height: 1; }
     .ctl:hover { border-color: #6a6a6a; background: #161616; }
@@ -56,8 +60,25 @@
       background: #1d1d1d; border-radius: 3px; margin-right: 8px; overflow: hidden; }
     .bar i { display: block; height: 100%; background: #f5f5f5; border-radius: 3px; }
     .empty { color: #9a9a9a; padding: 40px 0; text-align: center; font-size: 14px; }
-    @media (max-width: 560px) { th:nth-child(4), td:nth-child(4),
-      th:nth-child(6), td:nth-child(6) { display: none; } }
+    /* Desktop: only email and IP may wrap; labels, bars, counts and dates stay on one line */
+    @media (min-width: 641px) {
+      th, td:nth-child(2), td:nth-child(3), td:nth-child(4), td:nth-child(5) {
+        white-space: nowrap; overflow-wrap: normal; }
+    }
+    /* Phone: each viewer becomes a stacked card with every field labeled — nothing hidden */
+    @media (max-width: 640px) {
+      #controls .ctl { flex: 1 1 auto; justify-content: center; }
+      thead { display: none; }
+      table, tbody, tr, td { display: block; width: 100%; }
+      tr { border: 1px solid #1d1d1d; border-radius: 10px; padding: 12px 14px; margin-bottom: 10px; background: #0b0b0b; }
+      td { display: flex; justify-content: space-between; align-items: center; gap: 12px;
+        border: none; padding: 5px 0; text-align: right; }
+      td::before { content: attr(data-label); color: #9a9a9a; font-size: 12px; text-transform: uppercase;
+        letter-spacing: .06em; text-align: left; flex: none; }
+      td:first-child { display: block; text-align: left; font-size: 15px; font-weight: 600;
+        padding: 0 0 8px; margin-bottom: 4px; border-bottom: 1px solid #1d1d1d; }
+      td:first-child::before { display: none; }
+    }
   </style>
   <script>
   // Self-heal stale caches: GitHub Pages pins cache-control at max-age=600 and custom
@@ -131,9 +152,11 @@
         return;
       }
       empty.style.display = "none";
+      var LABELS = ["Email", "Device", "Watched", "Sessions", "Last seen", "IP"];
       rows.forEach(function (r) {
         var tr = document.createElement("tr");
-        function td(text) { var c = document.createElement("td"); c.textContent = text; tr.appendChild(c); return c; }
+        function td(text) { var c = document.createElement("td"); c.textContent = text;
+          c.setAttribute("data-label", LABELS[tr.children.length]); tr.appendChild(c); return c; }
         td(r.email);
         // Device comes classified from the worker ("mobile" / "desktop" / "both");
         // old rows logged before ua storage show "—".
@@ -141,12 +164,15 @@
              both: "📱+🖥️ Both" }[r.device] || "—");
         var pctCell = document.createElement("td");
         pctCell.className = "pct";
+        pctCell.setAttribute("data-label", "Watched");
         var bar = document.createElement("span"); bar.className = "bar";
         var fill = document.createElement("i");
         fill.style.width = Math.max(0, Math.min(100, r.watch_pct || 0)) + "%";
         bar.appendChild(fill);
-        pctCell.appendChild(bar);
-        pctCell.appendChild(document.createTextNode((r.watch_pct || 0) + "%"));
+        var pctWrap = document.createElement("span");
+        pctWrap.appendChild(bar);
+        pctWrap.appendChild(document.createTextNode((r.watch_pct || 0) + "%"));
+        pctCell.appendChild(pctWrap);
         tr.appendChild(pctCell);
         td(String(r.sessions || 0));
         td(r.last_seen ? r.last_seen.replace("T", " ").slice(0, 16) : "—");

@@ -1,3 +1,6 @@
 node_modules/
 .DS_Store
 .dev.vars
+
+# Wrangler local dev state (local D1 copy, account cache) - never commit
+.wrangler/

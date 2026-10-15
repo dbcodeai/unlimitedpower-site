@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
   <meta name="theme-color" content="#000000" />
   <meta name="robots" content="noindex, nofollow" />
   <meta name="description" content="Unlimited Power — Investor Pitch" />
@@ -12,30 +12,51 @@
     * { margin: 0; padding: 0; box-sizing: border-box; }
     html, body { height: 100%; background: #000; color: #f5f5f5;
       font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; }
-    .stage { position: fixed; inset: 0; display: flex; align-items: center; justify-content: center; }
-    /* ---- email gate ---- */
-    #gate { flex-direction: column; gap: 28px; padding: 0 16px; text-align: center; }
+    .stage { display: flex; align-items: center; justify-content: center; }
+    .sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+    /* ---- email gate: in-flow (not fixed) so a short landscape phone or an open
+       keyboard can still scroll to the button; dvh tracks the phone's toolbars ---- */
+    #gate { flex-direction: column; gap: 28px; text-align: center; min-height: 100vh; min-height: 100dvh;
+      padding: max(32px, env(safe-area-inset-top)) max(16px, env(safe-area-inset-right))
+               max(32px, env(safe-area-inset-bottom)) max(16px, env(safe-area-inset-left)); }
     #gate img { width: 64px; height: 64px; opacity: .92; }
     #gate h1 { font-size: 22px; font-weight: 600; letter-spacing: .04em; }
-    #gate p { font-size: 14px; color: #9a9a9a; max-width: 420px; line-height: 1.5; }
+    #gate p { font-size: 15px; color: #9a9a9a; max-width: 420px; line-height: 1.5; }
     #gate form { display: flex; gap: 10px; flex-wrap: wrap; justify-content: center; width: 100%; max-width: 440px; }
+    /* 16px minimum: anything smaller makes iPhone Safari zoom the page on focus */
     #gate input[type=email] {
-      flex: 1 1 260px; padding: 13px 16px; font-size: 15px; border-radius: 8px;
+      flex: 1 1 260px; min-height: 48px; padding: 12px 16px; font-size: 16px; border-radius: 8px;
       border: 1px solid #2e2e2e; background: #111; color: #f5f5f5; outline: none; min-width: 0;
     }
-    #gate input[type=email]:focus { border-color: #6a6a6a; }
-    #gate button {
-      padding: 13px 26px; font-size: 15px; font-weight: 600; border-radius: 8px; border: none;
+    #gate input[type=email]:focus { border-color: #8a8a8a; }
+    #gate input[aria-invalid=true] { border-color: #ff6b6b; }
+    #gate button[type=submit] {
+      min-height: 48px; padding: 12px 26px; font-size: 16px; font-weight: 600; border-radius: 8px; border: none;
       background: #f5f5f5; color: #000; cursor: pointer;
     }
-    #gate button:hover { background: #fff; }
-    #gate .err { color: #ff6b6b; font-size: 13px; min-height: 18px; }
-    /* ---- video ---- */
-    #player { display: none; background: #000; }
-    #player video { width: 100vw; height: 100vh; object-fit: contain; background: #000; }
-    /* ---- exit button (shown only while the player stage is up) ---- */
+    #gate button[type=submit]:hover { background: #fff; }
+    #gate button[type=submit]:disabled { opacity: .6; cursor: default; }
+    #gate button:focus-visible, #gate input:focus-visible { outline: 2px solid #fff; outline-offset: 2px; }
+    #gate .err { color: #ff6b6b; font-size: 14px; line-height: 1.45; min-height: 20px; max-width: 440px; }
+    #gate .suggest { display: none; font-size: 15px; color: #d5d5d5; line-height: 1.5; max-width: 440px; }
+    #gate .suggest b { color: #fff; font-weight: 600; overflow-wrap: anywhere; }
+    #gate .suggest button { min-height: 44px; margin: 6px 4px 0; padding: 8px 16px; font-size: 15px;
+      font-weight: 600; border-radius: 8px; cursor: pointer; font-family: inherit; }
+    #useSuggest { background: #f5f5f5; color: #000; border: none; }
+    #keepMine { background: transparent; color: #d5d5d5; border: 1px solid #3a3a3a; }
+    @media (max-width: 480px) {
+      #gate { gap: 22px; }
+      #gate form { flex-direction: column; }
+      #gate input[type=email], #gate button[type=submit] { flex: none; width: 100%; }
+    }
+    /* ---- video: fixed full-bleed; 100% of the fixed stage = the visible viewport ---- */
+    #player { display: none; position: fixed; inset: 0; background: #000; }
+    #player video { width: 100%; height: 100%; object-fit: contain; background: #000; }
+    /* ---- exit button (shown only while the player stage is up), clear of notch + home bar ---- */
     #exitBtn {
-      position: fixed; top: 20px; right: 20px; z-index: 10; display: none;
+      position: fixed; z-index: 10; display: none;
+      top: max(16px, calc(env(safe-area-inset-top) + 8px)); right: max(16px, calc(env(safe-area-inset-right) + 8px));
+      min-height: 44px; line-height: 22px;
       padding: 11px 20px; border-radius: 999px; background: #fff; color: #000;
       font-size: 14px; font-weight: 600; text-decoration: none; letter-spacing: .01em;
       box-shadow: 0 2px 14px rgba(0,0,0,.55); opacity: .95;
@@ -67,10 +88,18 @@
     <h1>Investor Pitch</h1>
     <p>Enter your email to watch the Unlimited Power investor presentation.</p>
     <form id="gateForm" novalidate>
-      <input type="email" id="email" placeholder="you@company.com" autocomplete="email" required />
-      <button type="submit">Watch</button>
+      <label for="email" class="sr-only">Email address</label>
+      <input type="email" id="email" placeholder="you@company.com" autocomplete="email"
+             inputmode="email" autocapitalize="none" autocorrect="off" spellcheck="false"
+             required aria-describedby="err suggest" />
+      <button type="submit" id="watchBtn">Watch</button>
     </form>
-    <div class="err" id="err"></div>
+    <div class="suggest" id="suggest" aria-live="polite">
+      Did you mean <b id="suggestText"></b>?<br />
+      <button type="button" id="useSuggest">Yes, use that</button>
+      <button type="button" id="keepMine">No, mine is right</button>
+    </div>
+    <div class="err" id="err" role="alert"></div>
   </div>
 
   <div class="stage" id="player">
@@ -82,6 +111,10 @@
     // Logging endpoint: Cloudflare Worker (workers/pitch-log). Empty string = logging
     // inert until the Worker is deployed; playback must never depend on it.
     var LOG_ENDPOINT = "https://upx-pitch-log.dannyblumenfeld.workers.dev/log";
+    // Server-side email check (domain receives mail, not a throwaway inbox). Fail open:
+    // unreachable or slower than VALIDATE_TIMEOUT_MS lets the visitor through.
+    var VALIDATE_ENDPOINT = "https://upx-pitch-log.dannyblumenfeld.workers.dev/validate";
+    var VALIDATE_TIMEOUT_MS = 3500;
 
     var sid = Math.random().toString(36).slice(2) + Date.now().toString(36);
     var email = "";
@@ -112,16 +145,105 @@
       if (p && p.catch) p.catch(function () { /* user presses play manually */ });
     }
 
-    document.getElementById("gateForm").addEventListener("submit", function (ev) {
-      ev.preventDefault();
-      var v = document.getElementById("email").value.trim();
-      if (!/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(v)) { err.textContent = "Please enter a valid email address."; return; }
-      err.textContent = "";
+    // ---- email validation: format + typo suggestion here, domain checks on the Worker ----
+    var input = document.getElementById("email");
+    var watchBtn = document.getElementById("watchBtn");
+    var suggestBox = document.getElementById("suggest");
+    var EMAIL_RE = /^[A-Za-z0-9.!#$%&'*+\/=?^_`{|}~-]+@(?:[A-Za-z0-9](?:[A-Za-z0-9-]{0,61}[A-Za-z0-9])?\.)+[A-Za-z]{2,}$/;
+    var MESSAGES = {
+      format: "That doesn\u2019t look like an email address \u2014 check it and try again.",
+      no_domain: "That domain doesn\u2019t exist \u2014 check the part after the @.",
+      no_mail: "That address can\u2019t receive email \u2014 check the part after the @.",
+      disposable: "Please use your work or personal email, not a temporary inbox."
+    };
+    var POPULAR = ["gmail.com", "googlemail.com", "yahoo.com", "ymail.com", "hotmail.com", "outlook.com",
+      "live.com", "msn.com", "icloud.com", "me.com", "mac.com", "aol.com", "protonmail.com", "proton.me",
+      "comcast.net", "verizon.net", "att.net"];
+    var TLD_FIX = { con: "com", cmo: "com", cpm: "com", vom: "com", xom: "com", comm: "com", ocm: "com",
+      cm: "com", om: "com", nte: "net", ner: "net", ogr: "org", orgg: "org" };
+    var dismissed = "";   // the exact address the visitor said "mine is right" to
+
+    function distance(a, b) {   // Levenshtein, tiny inputs only
+      var d = [], i, j;
+      for (i = 0; i <= a.length; i++) d[i] = [i];
+      for (j = 0; j <= b.length; j++) d[0][j] = j;
+      for (i = 1; i <= a.length; i++) for (j = 1; j <= b.length; j++)
+        d[i][j] = Math.min(d[i - 1][j] + 1, d[i][j - 1] + 1, d[i - 1][j - 1] + (a[i - 1] === b[j - 1] ? 0 : 1));
+      return d[a.length][b.length];
+    }
+    function suggestFor(v) {
+      var at = v.lastIndexOf("@"); if (at < 1) return "";
+      var local = v.slice(0, at), domain = v.slice(at + 1).toLowerCase();
+      if (POPULAR.indexOf(domain) >= 0) return "";
+      var best = "", bestD = 3;
+      POPULAR.forEach(function (p) { var dd = distance(domain, p); if (dd < bestD) { bestD = dd; best = p; } });
+      if (best && bestD <= (domain.length > 8 ? 2 : 1)) return local + "@" + best;
+      var dot = domain.lastIndexOf("."), tld = domain.slice(dot + 1);
+      if (dot > 0 && TLD_FIX[tld]) return local + "@" + domain.slice(0, dot + 1) + TLD_FIX[tld];
+      return "";
+    }
+    function setError(text) {
+      err.textContent = text || "";
+      input.setAttribute("aria-invalid", text ? "true" : "false");
+    }
+    function hideSuggest() { suggestBox.style.display = "none"; }
+    function busy(on) { watchBtn.disabled = on; watchBtn.textContent = on ? "Checking\u2026" : "Watch"; }
+
+    function admit(v) {
       email = v;
       try { localStorage.setItem("upx_pitch_email", v); } catch (e) {}
       log("email_submitted");
       showPlayer();
+    }
+    function reject(reason, v) {
+      setError(MESSAGES[reason] || MESSAGES.format);
+      log("email_rejected", { reason: reason, domain: (v.split("@")[1] || "").slice(0, 100) });
+      input.focus();
+    }
+
+    function checkServer(v) {
+      if (!VALIDATE_ENDPOINT || !window.fetch) return admit(v);
+      busy(true);
+      var done = false;
+      function finish(fn) { if (done) return; done = true; busy(false); fn(); }
+      var timer = setTimeout(function () { finish(function () { admit(v); }); }, VALIDATE_TIMEOUT_MS);
+      fetch(VALIDATE_ENDPOINT + "?email=" + encodeURIComponent(v), { cache: "no-store" })
+        .then(function (r) { return r.ok ? r.json() : { ok: true }; })
+        .then(function (res) {
+          clearTimeout(timer);
+          finish(function () { if (res && res.ok === false) reject(res.reason, v); else admit(v); });
+        })
+        .catch(function () { clearTimeout(timer); finish(function () { admit(v); }); });
+    }
+
+    document.getElementById("gateForm").addEventListener("submit", function (ev) {
+      ev.preventDefault();
+      if (watchBtn.disabled) return;
+      var v = input.value.trim();
+      input.value = v;
+      hideSuggest();
+      if (v.length > 254 || v.indexOf("..") >= 0 || !EMAIL_RE.test(v)) return reject("format", v);
+      setError("");
+      var s = suggestFor(v);
+      if (s && dismissed !== v) {
+        document.getElementById("suggestText").textContent = s;
+        suggestBox.style.display = "block";
+        document.getElementById("useSuggest").focus();
+        return;
+      }
+      checkServer(v);
     });
+    document.getElementById("useSuggest").addEventListener("click", function () {
+      input.value = document.getElementById("suggestText").textContent;
+      hideSuggest();
+      checkServer(input.value);
+    });
+    document.getElementById("keepMine").addEventListener("click", function () {
+      dismissed = input.value.trim();
+      hideSuggest();
+      checkServer(dismissed);
+    });
+    input.addEventListener("input", function () { if (err.textContent) setError(""); hideSuggest(); });
 
     // Watch measurement: cumulative played seconds, progress milestones, final beacon.
     var watched = 0, lastTick = null, milestones = {};
@@ -153,7 +275,7 @@
     });
 
     log("gate_view");
-    if (email) { document.getElementById("email").value = email; }
+    if (email) { input.value = email; }
   </script>
 </body>
 </html>

@@ -4,6 +4,9 @@
 // GET  /viewers : per-email aggregation (email, ip, watch %, sessions, last seen).
 //                 Basic Auth — user VIEW_USER (var), password VIEW_PASS (secret).
 // GET  /export?key=<EXPORT_KEY> : CSV of all events, newest first.
+// GET  /validate?email= : {ok, reason?} — format, disposable-domain blocklist, and
+//                 domain-can-receive-mail (DNS MX, then A/AAAA). Lookup failure answers
+//                 ok:true + unverified:true: a broken check must never lock a visitor out.
 // Deploy (after `wrangler login`):
 //   npx wrangler d1 create upx-pitch-log            # put returned id in wrangler.toml
 //   npx wrangler d1 execute upx-pitch-log --remote --file=schema.sql
@@ -12,6 +15,8 @@
 //   npx wrangler deploy
 // Then set LOG_ENDPOINT in pitch/index.html and VIEWERS_ENDPOINT in
 // pitch/viewers/index.html to the deployed URL + /log and + /viewers.
+
+import { DISPOSABLE } from "./disposable-domains.js";
 
 const ALLOWED_ORIGINS = ["https://unlimitedpower.ai", "https://www.unlimitedpower.ai"];
 
@@ -38,6 +43,46 @@ function authorized(request, env) {
   const user = decoded.slice(0, i);
   const pass = decoded.slice(i + 1);
   return Boolean(env.VIEW_PASS) && user === (env.VIEW_USER || "upx") && pass === env.VIEW_PASS;
+}
+
+const EMAIL_RE = /^[A-Za-z0-9.!#$%&'*+/=?^_`{|}~-]+@(?:[A-Za-z0-9](?:[A-Za-z0-9-]{0,61}[A-Za-z0-9])?\.)+[A-Za-z]{2,}$/;
+
+async function dnsQuery(name, type) {
+  const r = await fetch(
+    `https://cloudflare-dns.com/dns-query?name=${encodeURIComponent(name)}&type=${type}`,
+    { headers: { accept: "application/dns-json" } });
+  if (!r.ok) throw new Error("dns " + r.status);
+  return r.json();
+}
+
+async function validateEmail(raw) {
+  const email = String(raw || "").trim();
+  if (email.length > 254 || email.includes("..") || !EMAIL_RE.test(email))
+    return { ok: false, reason: "format" };
+  const domain = email.split("@")[1].toLowerCase();
+  // Blocklisted domain or any parent of it (x.mailinator.com is mailinator.com).
+  const labels = domain.split(".");
+  for (let i = 0; i < labels.length - 1; i++)
+    if (DISPOSABLE.has(labels.slice(i).join("."))) return { ok: false, reason: "disposable" };
+  try {
+    const mx = await dnsQuery(domain, "MX");
+    if (mx.Status === 3) return { ok: false, reason: "no_domain" };       // NXDOMAIN
+    if (mx.Status !== 0) return { ok: true, unverified: true };            // SERVFAIL etc.
+    const mxs = (mx.Answer || []).filter((a) => a.type === 15);
+    if (mxs.length) {
+      // RFC 7505 null MX ("0 .") = the domain explicitly accepts no mail.
+      return mxs.every((a) => /^0\s+\.$/.test(String(a.data).trim()))
+        ? { ok: false, reason: "no_mail" } : { ok: true };
+    }
+    // No MX: mail falls back to the address record (RFC 5321 implicit MX).
+    for (const [t, code] of [["A", 1], ["AAAA", 28]]) {
+      const r = await dnsQuery(domain, t);
+      if ((r.Answer || []).some((a) => a.type === code)) return { ok: true };
+    }
+    return { ok: false, reason: "no_mail" };
+  } catch (e) {
+    return { ok: true, unverified: true };
+  }
 }
 
 const VIEWERS_SQL = `
@@ -86,6 +131,13 @@ export default {
         request.headers.get("CF-Connecting-IP") || ""
       ).run();
       return new Response("ok", { headers: cors(origin) });
+    }
+
+    if (request.method === "GET" && url.pathname === "/validate") {
+      const result = await validateEmail(url.searchParams.get("email"));
+      return new Response(JSON.stringify(result), {
+        headers: { "Content-Type": "application/json", "Cache-Control": "no-store", ...cors(origin) },
+      });
     }
 
     if (request.method === "GET" && url.pathname === "/viewers") {
