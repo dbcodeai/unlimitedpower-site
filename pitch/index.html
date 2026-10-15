@@ -90,6 +90,7 @@
     function showPlayer() {
       gate.style.display = "none";
       player.style.display = "flex";
+      document.getElementById("exitBtn").style.display = "inline-block";
       var p = video.play();
       if (p && p.catch) p.catch(function () { /* user presses play manually */ });
     }
@@ -127,6 +128,11 @@
     window.addEventListener("pagehide", function () {
       flushTime();
       log("watch_end", { seconds: Math.round(watched), position: Math.round(video.currentTime || 0), duration: Math.round(video.duration || 0) });
+    });
+
+    document.getElementById("exitBtn").addEventListener("click", function () {
+      flushTime();
+      log("exit_video", { seconds: Math.round(watched), position: Math.round(video.currentTime || 0), duration: Math.round(video.duration || 0) });
     });
 
     log("gate_view");
