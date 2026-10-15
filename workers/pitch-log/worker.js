@@ -51,7 +51,11 @@ const VIEWERS_SQL = `
                           / CAST(json_extract(data, '$.duration') AS REAL)) AS INTEGER)
           ELSE 0 END) AS position_pct,
     (SELECT ip FROM events e2 WHERE e2.email = events.email AND e2.ip != ''
-       ORDER BY e2.id DESC LIMIT 1) AS ip
+       ORDER BY e2.id DESC LIMIT 1) AS ip,
+    MAX(CASE WHEN ua LIKE '%iPhone%' OR ua LIKE '%Android%' OR ua LIKE '%Mobile%'
+          THEN 1 ELSE 0 END) AS saw_mobile,
+    MAX(CASE WHEN ua != '' AND ua NOT LIKE '%iPhone%' AND ua NOT LIKE '%Android%'
+          AND ua NOT LIKE '%Mobile%' THEN 1 ELSE 0 END) AS saw_desktop
   FROM events
   WHERE email != ''
   GROUP BY email
@@ -94,6 +98,10 @@ export default {
         watch_pct: Math.min(100, Math.max(r.milestone_pct || 0, r.position_pct || 0)),
         sessions: r.sessions,
         last_seen: r.last_seen,
+        // Classified from stored user-agents; an iPad reports "Macintosh" so it lands
+        // in desktop — a UA cannot tell those apart.
+        device: r.saw_mobile && r.saw_desktop ? "both"
+          : r.saw_mobile ? "mobile" : r.saw_desktop ? "desktop" : "",
       }));
       return new Response(JSON.stringify(rows), {
         headers: { "Content-Type": "application/json", ...cors(origin) },
