@@ -1,0 +1,68 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="theme-color" content="#000000" />
+  <meta name="robots" content="noindex, nofollow" />
+  <meta name="description" content="Unlimited Power — Thank You" />
+  <link rel="icon" href="data:," />
+  <title>Unlimited Power — Thank You</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    html, body { height: 100%; background: #000; color: #f5f5f5;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; }
+    .stage { position: fixed; inset: 0; display: flex; flex-direction: column;
+      align-items: center; justify-content: center; gap: 28px; padding: 0 16px; text-align: center; }
+    img.logo { width: 64px; height: 64px; opacity: .92; }
+    h1 { font-size: 24px; font-weight: 600; letter-spacing: .04em; max-width: 520px; line-height: 1.35; }
+    p { font-size: 15px; color: #9a9a9a; max-width: 460px; line-height: 1.6; }
+    .contact {
+      display: inline-block; padding: 13px 26px; font-size: 15px; font-weight: 600;
+      border-radius: 8px; background: #f5f5f5; color: #000; text-decoration: none;
+    }
+    .contact:hover { background: #fff; }
+    .contact:focus-visible { outline: 2px solid #fff; outline-offset: 3px; }
+    .addr { font-size: 14px; color: #9a9a9a; }
+    .addr a { color: #d5d5d5; text-decoration: none; border-bottom: 1px solid #3a3a3a; }
+    .addr a:hover { color: #fff; border-bottom-color: #8a8a8a; }
+  </style>
+</head>
+<body>
+  <div class="stage">
+    <img class="logo" src="/assets/UP-Logo-white.svg" alt="Unlimited Power" />
+    <h1>Thank you for reviewing our presentation.</h1>
+    <p>If what you saw sparked questions — or you&rsquo;d like to go deeper on the numbers,
+       the product, or a live walkthrough — we&rsquo;d love to talk.</p>
+    <a class="contact" id="emailBtn"
+       href="mailto:yuval@unlimitedpower.ai?subject=Unlimited%20Power%20Investor%20Presentation">
+       Email Yuval Rechter</a>
+    <div class="addr">or write to
+      <a href="mailto:yuval@unlimitedpower.ai?subject=Unlimited%20Power%20Investor%20Presentation">yuval@unlimitedpower.ai</a>
+    </div>
+  </div>
+
+  <script>
+    // Same logging pipeline as /pitch/ — playback and this page never depend on it.
+    var LOG_ENDPOINT = "https://upx-pitch-log.dannyblumenfeld.workers.dev/log";
+    var sid = Math.random().toString(36).slice(2) + Date.now().toString(36);
+    var email = "";
+    try { email = localStorage.getItem("upx_pitch_email") || ""; } catch (e) {}
+
+    function log(type, data) {
+      if (!LOG_ENDPOINT) return;
+      var payload = JSON.stringify({
+        type: type, data: data || {}, email: email, session: sid,
+        ts: new Date().toISOString(), page: location.pathname, ua: navigator.userAgent
+      });
+      try {
+        if (navigator.sendBeacon && navigator.sendBeacon(LOG_ENDPOINT, new Blob([payload], { type: "application/json" }))) return;
+      } catch (e) {}
+      try { fetch(LOG_ENDPOINT, { method: "POST", body: payload, keepalive: true, headers: { "Content-Type": "application/json" } }).catch(function () {}); } catch (e) {}
+    }
+
+    log("thanks_view");
+    document.getElementById("emailBtn").addEventListener("click", function () { log("contact_click"); });
+  </script>
+</body>
+</html>
