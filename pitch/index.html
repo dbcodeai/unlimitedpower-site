@@ -49,19 +49,24 @@
       #gate form { flex-direction: column; }
       #gate input[type=email], #gate button[type=submit] { flex: none; width: 100%; }
     }
-    /* ---- video: fixed full-bleed; 100% of the fixed stage = the visible viewport ---- */
-    #player { display: none; position: fixed; inset: 0; background: #000; }
-    #player video { width: 100%; height: 100%; object-fit: contain; background: #000; }
-    /* ---- exit button (shown only while the player stage is up), clear of notch + home bar ---- */
+    /* ---- video: the frame is sized to the 16:9 picture itself, so the browser's own
+       controls and captions stay on the picture, and Exit sits in a bar above it instead
+       of on top of those controls. Width = the smaller of the screen width and the width
+       a full-height picture would need, so it fits upright phones, landscape and desktop. ---- */
+    #player { display: none; position: fixed; inset: 0; background: #000; flex-direction: column;
+      padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left); }
+    #player .frame { --bar: 60px; width: 100%;
+      width: min(100%, calc((100vh - var(--bar) - env(safe-area-inset-top) - env(safe-area-inset-bottom)) * 16 / 9));
+      width: min(100%, calc((100dvh - var(--bar) - env(safe-area-inset-top) - env(safe-area-inset-bottom)) * 16 / 9)); }
+    #player .bar { height: var(--bar); display: flex; align-items: center; justify-content: flex-end; padding: 0 8px; }
+    #player video { display: block; width: 100%; height: auto; aspect-ratio: 16 / 9; background: #000; }
+    #player video::cue { background: rgba(0,0,0,.72); color: #fff; }
     #exitBtn {
-      position: fixed; z-index: 10; display: none;
-      top: max(16px, calc(env(safe-area-inset-top) + 8px)); right: max(16px, calc(env(safe-area-inset-right) + 8px));
-      min-height: 44px; line-height: 22px;
-      padding: 11px 20px; border-radius: 999px; background: #fff; color: #000;
+      min-height: 44px; line-height: 20px; padding: 11px 18px; border-radius: 999px;
+      background: rgba(255,255,255,.12); border: 1px solid rgba(255,255,255,.24); color: #fff;
       font-size: 14px; font-weight: 600; text-decoration: none; letter-spacing: .01em;
-      box-shadow: 0 2px 14px rgba(0,0,0,.55); opacity: .95;
     }
-    #exitBtn:hover, #exitBtn:focus-visible { opacity: 1; }
+    #exitBtn:hover, #exitBtn:focus-visible { background: rgba(255,255,255,.22); }
     #exitBtn:focus-visible { outline: 2px solid #fff; outline-offset: 3px; }
   </style>
   <script>
@@ -103,9 +108,13 @@
   </div>
 
   <div class="stage" id="player">
-    <video id="video" src="/pitch/media/upx-769769b30b4d.mp4" controls playsinline preload="auto"></video>
+    <div class="frame">
+      <div class="bar"><a id="exitBtn" href="/pitch/thanks/">&#10005;&nbsp; Exit video</a></div>
+      <video id="video" src="/pitch/media/upx-43745e45e8d5.mp4" controls playsinline preload="auto">
+        <track kind="subtitles" srclang="en" label="English" src="/pitch/media/upx-43745e45e8d5.en.vtt" default />
+      </video>
+    </div>
   </div>
-  <a id="exitBtn" href="/pitch/thanks/">&#10005;&nbsp; Exit video</a>
 
   <script>
     // Logging endpoint: Cloudflare Worker (workers/pitch-log). Empty string = logging
