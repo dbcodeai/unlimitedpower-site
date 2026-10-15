@@ -43,6 +43,23 @@
     #exitBtn:hover, #exitBtn:focus-visible { opacity: 1; }
     #exitBtn:focus-visible { outline: 2px solid #fff; outline-offset: 3px; }
   </style>
+  <script>
+  // Self-heal stale caches: GitHub Pages pins cache-control at max-age=600 and custom
+  // headers are impossible here, so the page checks its own freshness. document.lastModified
+  // comes from the Last-Modified header of the copy the browser actually loaded; a HEAD
+  // request with a cache-busting query reads the live deploy's stamp past both the browser
+  // and the Fastly edge. Newer live copy -> one forced reload with a fresh URL.
+  (function () {
+    if (new URLSearchParams(location.search).has("fresh")) return;
+    fetch(location.pathname + "?cb=" + Date.now(), { method: "HEAD", cache: "no-store" })
+      .then(function (r) {
+        var live = new Date(r.headers.get("Last-Modified") || 0).getTime();
+        var mine = new Date(document.lastModified).getTime();
+        if (live && mine && live - mine > 5000) location.replace(location.pathname + "?fresh=" + live);
+      })
+      .catch(function () {});
+  })();
+  </script>
 </head>
 <body>
   <div class="stage" id="gate">
