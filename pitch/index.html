@@ -33,6 +33,15 @@
     /* ---- video ---- */
     #player { display: none; background: #000; }
     #player video { width: 100vw; height: 100vh; object-fit: contain; background: #000; }
+    /* ---- exit button (shown only while the player stage is up) ---- */
+    #exitBtn {
+      position: fixed; top: 20px; right: 20px; z-index: 10; display: none;
+      padding: 11px 20px; border-radius: 999px; background: #fff; color: #000;
+      font-size: 14px; font-weight: 600; text-decoration: none; letter-spacing: .01em;
+      box-shadow: 0 2px 14px rgba(0,0,0,.55); opacity: .95;
+    }
+    #exitBtn:hover, #exitBtn:focus-visible { opacity: 1; }
+    #exitBtn:focus-visible { outline: 2px solid #fff; outline-offset: 3px; }
   </style>
 </head>
 <body>
@@ -50,6 +59,7 @@
   <div class="stage" id="player">
     <video id="video" src="/pitch/media/upx-769769b30b4d.mp4" controls playsinline preload="auto"></video>
   </div>
+  <a id="exitBtn" href="https://unlimitedpower.ai/">&#10005;&nbsp; Exit video</a>
 
   <script>
     // Logging endpoint: Cloudflare Worker (workers/pitch-log). Empty string = logging
