@@ -15,7 +15,8 @@
 // GET/POST /admin/api/*     : Basic Auth (ADMIN_USER var, ADMIN_PASS secret). Manage
 //                 items and per-item guest links. See adminRouter() below.
 // GET      /admin/          : the admin console page (served from env.ASSETS).
-// GET      /a/:token/*      : public asset view. Email gate only, no password.
+// GET      /a/:slug/*       : public asset view, at the asset's own readable address
+//                 (its slug, not a random token). Email gate only, no password.
 // GET      /v/:token/*      : guest view. Basic Auth against that link's own
 //                 username/password (stored hashed in D1), then an email-capture
 //                 cookie gate, then the item's content from env.ASSETS.
@@ -179,9 +180,6 @@ async function adminRouter(request, env, url) {
       if (typeof body.archived === "boolean") { sets.push("archived = ?"); binds.push(body.archived ? 1 : 0); }
       if (body.visibility === "public" || body.visibility === "private") {
         sets.push("visibility = ?"); binds.push(body.visibility);
-        // First time an asset goes public it gets its own unguessable link; it keeps
-        // that link afterwards, so switching back and forth never breaks a sent URL.
-        if (body.visibility === "public") { sets.push("public_token = COALESCE(public_token, ?)"); binds.push(randomToken(9)); }
       }
       if (!sets.length) return new Response("nothing to update", { status: 400 });
       binds.push(itemMatch);
@@ -436,18 +434,21 @@ async function viewerRouter(request, env, url) {
   return serveGated(request, env, { scope: "v/" + token, item, linkId: link.id, segs });
 }
 
-// /a/:public_token/* — public: no password, only the email gate. Works only while
-// the asset is set to public; switching it back to private turns this link off.
+// /a/:slug/* — public: no password, only the email gate. The address is the asset's
+// own readable slug, not a random token — it's the asset's home address, like a repo's
+// own path, not a one-off invite. Works only while the asset is set to public;
+// switching it back to private turns this address off (private guest links at /v/ are
+// unaffected — those are per-person invites and stay opaque on purpose).
 async function publicRouter(request, env, url) {
-  const segs = url.pathname.split("/").filter(Boolean); // ["a", token, ...rest]
-  const token = segs[1] || "";
-  if (!token) return new Response("not found", { status: 404 });
+  const segs = url.pathname.split("/").filter(Boolean); // ["a", slug, ...rest]
+  const slug = segs[1] || "";
+  if (!slug) return new Response("not found", { status: 404 });
   const item = await env.DB.prepare(
-    "SELECT id, slug, title FROM items WHERE public_token = ? AND visibility = 'public' AND archived = 0"
-  ).bind(token).first();
+    "SELECT id, slug, title FROM items WHERE slug = ? AND visibility = 'public' AND archived = 0"
+  ).bind(slug).first();
   if (!item) return new Response("this link is not active", { status: 404 });
   if (segs.length === 2 && !url.pathname.endsWith("/")) return Response.redirect(url.origin + url.pathname + "/", 301);
-  return serveGated(request, env, { scope: "a/" + token, item, linkId: null, segs });
+  return serveGated(request, env, { scope: "a/" + slug, item, linkId: null, segs });
 }
 
 // Admin: one row per (asset, email). First viewed = first email entry or open.

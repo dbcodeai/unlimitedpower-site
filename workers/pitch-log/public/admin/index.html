@@ -304,9 +304,38 @@ function when(iso) {
   return day(iso, d.getFullYear() !== now.getFullYear()) + ', ' + time(iso);
 }
 const plural = (n, w) => n + ' ' + w + (n === 1 ? '' : 's');
-const publicUrl = (it) => location.origin + '/a/' + it.public_token + '/';
+const publicUrl = (it) => location.origin + '/a/' + it.slug + '/';
 const guestUrl = (l) => location.origin + '/v/' + l.token + '/';
 const initials = (s) => String(s || '?').trim().split(/\s+/).slice(0, 2).map(w => w[0]).join('');
+
+// The storage folder is plumbing: made from the name, never shown or typed.
+const toSlug = (v) => v.toLowerCase().trim().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 54) || 'asset';
+// A filename becomes a readable starting name: "upx-investor-deck.pdf" -> "Upx Investor Deck".
+function titleFromFilename(name) {
+  const base = String(name || '').replace(/\.[a-z0-9]{1,5}$/i, '');
+  const spaced = base.replace(/[_-]+/g, ' ').replace(/\s+/g, ' ').trim();
+  return spaced.replace(/\w\S*/g, (w) => w[0].toUpperCase() + w.slice(1)) || 'Untitled asset';
+}
+const MAX_UPLOAD_BYTES = 24 * 1024 * 1024;
+async function putFile(itemId, file, relPath) {
+  const r = await fetch(`/admin/api/items/${itemId}/files?path=${encodeURIComponent(relPath)}`, { method: 'PUT', body: file });
+  if (!r.ok) throw new Error((await r.text()) || ('HTTP ' + r.status));
+}
+// Shared by the upload-first composer (brand new asset) and an existing asset's own
+// Files section (replacing what's live) — same two steps either way: PUT every file,
+// then finalize if it was a single PDF (wraps it in a viewer page).
+async function uploadFiles(itemId, fileList, singlePdf, onProgress) {
+  const picked = Array.from(fileList);
+  for (let i = 0; i < picked.length; i++) {
+    const f = picked[i];
+    const relPath = singlePdf ? f.name : (f.webkitRelativePath.split('/').slice(1).join('/') || f.name);
+    if (onProgress) onProgress(i + 1, picked.length, relPath);
+    await putFile(itemId, f, relPath);
+  }
+  if (singlePdf) {
+    await api('/items/' + itemId + '/files/finalize', { method: 'POST', body: JSON.stringify({ pdfPath: picked[0].name }) });
+  }
+}
 
 let toastTimer;
 function toast(msg, isErr) {
@@ -373,8 +402,11 @@ async function assetsView(root) {
   }
   root.innerHTML = `<div class="page">
     <div class="head">
-      <div><h1>Assets</h1><p class="lede">Everything we have online. Open one to set who can see it and to copy its link.</p></div>
-      <button class="btn primary" id="addBtn">${ICON.plus}New asset</button>
+      <div><h1>Assets</h1><p class="lede">Upload a file to add one — it's live in its own folder right away. Open it after to choose public or private.</p></div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap">
+        <label class="btn ghost" for="addFolder">${ICON.upload}Upload a deck folder<input type="file" id="addFolder" webkitdirectory multiple hidden></label>
+        <label class="btn primary" for="addPdf">${ICON.upload}Upload a PDF<input type="file" id="addPdf" accept="application/pdf" hidden></label>
+      </div>
     </div>
     <div id="composerSlot"></div>
     ${items.length ? `
@@ -389,50 +421,70 @@ async function assetsView(root) {
           <span class="n num">${s.last ? when(s.last) : 'Not yet'}</span>
           <span class="chev">${ICON.chev}</span>
         </a>`;}).join('')}</div>`
-    : `<div class="empty"><b>Nothing is online yet</b><p>An asset is anything we share with a link, like a deck or a video. Create one, then choose public or private.</p></div>`}
+    : `<div class="empty"><b>Nothing is online yet</b><p>An asset is anything we share with a link, like a deck or a video. Upload one above to add it.</p></div>`}
   </div>`;
 
-  const addBtn = root.querySelector('#addBtn'), slot = root.querySelector('#composerSlot');
-  const close = () => { slot.innerHTML = ''; addBtn.hidden = false; addBtn.focus(); };
-  addBtn.onclick = () => {
-    addBtn.hidden = true;
+  const slot = root.querySelector('#composerSlot');
+  const close = () => { slot.innerHTML = ''; };
+
+  // Picking the file(s) IS the create action — there is no empty asset waiting for an
+  // upload. We still show one quick confirm card (name editable, files listed) before
+  // the item exists, so a typo in the source filename isn't locked in; cancelling here
+  // creates nothing.
+  const openComposer = (fileList, singlePdf) => {
+    const picked = Array.from(fileList);
+    if (!picked.length) return;
+    const oversize = picked.find((f) => f.size > MAX_UPLOAD_BYTES);
+    if (oversize) { toast(`"${oversize.name}" is over the 25MB-per-file limit.`, true); return; }
+    const sourceName = singlePdf ? picked[0].name : (picked.find((f) => /index\.html?$/i.test(f.name))
+      ? (picked[0].webkitRelativePath || '').split('/')[0] : picked[0].name);
+    const derived = titleFromFilename(sourceName || picked[0].name);
     slot.innerHTML = `<form class="composer" id="newForm" novalidate>
-      <div class="composer-top"><h2>New asset</h2><p>New assets start private.</p></div>
+      <div class="composer-top"><h2>New asset</h2><p>Starts private. Nothing is live until you create it.</p></div>
       <div class="fields">
         <div class="field"><label for="nTitle">Name</label>
-          <input class="input" id="nTitle" placeholder="Name of asset" autocomplete="off">
+          <input class="input" id="nTitle" value="${esc(derived)}" autocomplete="off">
           <small>Viewers see this name before they enter their email.</small></div>
       </div>
-      <div class="preview">${ICON.lock}<span>Viewers will read: “To view <b id="pvName">your asset</b>, please enter your email.”</span></div>
+      <div class="files-list">${picked.slice(0, 6).map((f) => `<div class="file-row">${ICON.doc}<span>${esc(singlePdf ? f.name : (f.webkitRelativePath || f.name))}</span></div>`).join('')}
+        ${picked.length > 6 ? `<div class="file-row">${ICON.doc}<span>+ ${picked.length - 6} more file${picked.length - 6 === 1 ? '' : 's'}</span></div>` : ''}</div>
       <div class="actions"><span class="form-error" id="nErr" style="margin-right:auto;align-self:center"></span>
         <button class="btn ghost" type="button" id="nCancel">Cancel</button>
         <button class="btn primary" type="submit" id="nSubmit">Create asset</button></div>
     </form>`;
-    const f = slot.querySelector('#newForm'), t = f.querySelector('#nTitle'),
-          pv = f.querySelector('#pvName'), err = f.querySelector('#nErr');
-    // The storage folder is plumbing: made from the name, never shown or typed.
-    const toSlug = (v) => v.toLowerCase().trim().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 54) || 'asset';
-    t.oninput = () => { pv.textContent = t.value.trim() || 'your asset'; err.textContent = ''; };
+    const f = slot.querySelector('#newForm'), t = f.querySelector('#nTitle'), err = f.querySelector('#nErr'), b = f.querySelector('#nSubmit');
+    t.oninput = () => { err.textContent = ''; };
     f.querySelector('#nCancel').onclick = close;
     f.onkeydown = (e) => { if (e.key === 'Escape') close(); };
     f.onsubmit = async (e) => {
       e.preventDefault();
       if (!t.value.trim()) { err.textContent = 'Give the asset a name.'; t.focus(); return; }
-      const b = f.querySelector('#nSubmit'); b.disabled = true; b.textContent = 'Creating…';
+      b.disabled = true; b.textContent = 'Creating…';
       const base = toSlug(t.value);
+      let it;
       for (let n = 1; n <= 20; n++) {
         try {
-          const it = await api('/items', { method: 'POST', body: JSON.stringify({ title: t.value.trim(), slug: n === 1 ? base : base + '-' + n }) });
-          toast('Asset created'); location.hash = '#/assets/' + it.id; return;
+          it = await api('/items', { method: 'POST', body: JSON.stringify({ title: t.value.trim(), slug: n === 1 ? base : base + '-' + n }) });
+          break;
         } catch (ex) {
           if (/exists/.test(ex.message) && n < 20) continue;
           b.disabled = false; b.textContent = 'Create asset';
           err.textContent = 'Could not create it: ' + ex.message; return;
         }
       }
+      try {
+        await uploadFiles(it.id, picked, singlePdf, (i, total, name) => { b.textContent = `Uploading ${i} of ${total}…`; });
+        toast(picked.length === 1 ? 'Asset created' : `Asset created · ${picked.length} files`);
+        location.hash = '#/assets/' + it.id;
+      } catch (ex) {
+        b.disabled = false; b.textContent = 'Create asset';
+        err.textContent = 'Created, but the upload failed: ' + ex.message + ' — open the asset to retry.';
+      }
     };
-    t.focus();
+    t.focus(); t.select();
   };
+  root.querySelector('#addPdf').onchange = (e) => { openComposer(e.target.files, true); e.target.value = ''; };
+  root.querySelector('#addFolder').onchange = (e) => { openComposer(e.target.files, false); e.target.value = ''; };
 }
 
 async function assetView(root, id) {
@@ -458,7 +510,7 @@ async function assetView(root, id) {
 
     <section class="section" style="margin-top:12px">
       <div class="bar"><h2>Files</h2><span class="count">${files.length ? plural(files.length, 'file') : 'Empty'}</span></div>
-      <p class="explain">${files.length ? 'Uploading replaces everything below.' : 'Nothing is live yet — upload a PDF or an exported deck folder.'}</p>
+      <p class="explain">Lives in its own folder, <code>/items/${esc(it.slug)}/</code>. ${files.length ? 'Uploading replaces everything below.' : 'Nothing is live yet — upload a PDF or an exported deck folder.'}</p>
       ${files.length ? `<div class="files-list">${files.map(f => `<div class="file-row">${ICON.doc}<span>${esc(f)}</span></div>`).join('')}</div>` : ''}
       <div class="upload-row">
         <label class="btn" for="uploadPdf">${ICON.upload}Upload a PDF<input type="file" id="uploadPdf" accept="application/pdf" hidden></label>
@@ -521,11 +573,6 @@ async function assetView(root, id) {
     catch (e) { toast('Could not change it: ' + e.message, true); }
   });
   const uploadErr = root.querySelector('#uploadErr'), uploadProgress = root.querySelector('#uploadProgress');
-  const MAX_UPLOAD_BYTES = 24 * 1024 * 1024;
-  const putFile = async (file, relPath) => {
-    const r = await fetch(`/admin/api/items/${it.id}/files?path=${encodeURIComponent(relPath)}`, { method: 'PUT', body: file });
-    if (!r.ok) throw new Error((await r.text()) || ('HTTP ' + r.status));
-  };
   const runUpload = async (fileList, singlePdf) => {
     uploadErr.textContent = '';
     const picked = Array.from(fileList);
@@ -536,16 +583,7 @@ async function assetView(root, id) {
     try {
       uploadProgress.textContent = "Clearing what's live…";
       await api('/items/' + it.id + '/files', { method: 'DELETE' });
-      for (let i = 0; i < picked.length; i++) {
-        const f = picked[i];
-        const relPath = singlePdf ? f.name : (f.webkitRelativePath.split('/').slice(1).join('/') || f.name);
-        uploadProgress.textContent = `Uploading ${i + 1} of ${picked.length}: ${relPath}`;
-        await putFile(f, relPath);
-      }
-      if (singlePdf) {
-        uploadProgress.textContent = 'Finishing…';
-        await api('/items/' + it.id + '/files/finalize', { method: 'POST', body: JSON.stringify({ pdfPath: picked[0].name }) });
-      }
+      await uploadFiles(it.id, picked, singlePdf, (i, total, name) => { uploadProgress.textContent = `Uploading ${i} of ${total}: ${name}`; });
       toast(picked.length === 1 ? 'Uploaded' : `Uploaded ${picked.length} files`);
       route();
     } catch (ex) {
