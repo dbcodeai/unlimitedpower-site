@@ -110,7 +110,7 @@
     display: grid; gap: 20px; animation: rise .32s var(--ease) both; }
   .composer-top { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; }
   .composer-top p { color: var(--muted); font-size: 13.5px; }
-  .composer .fields { display: grid; grid-template-columns: minmax(0, 1.3fr) minmax(0, 1fr); gap: 16px; }
+  .composer .fields { display: grid; grid-template-columns: minmax(0, 1fr); max-width: 560px; gap: 16px; }
   .composer .preview { display: flex; align-items: center; gap: 10px; font-size: 13.5px; color: var(--muted);
     padding-top: 16px; border-top: 1px solid var(--line); }
   .composer .preview svg { width: 15px; height: 15px; flex: none; }
@@ -393,36 +393,35 @@ async function assetsView(root) {
       <div class="composer-top"><h2>New asset</h2><p>New assets start private.</p></div>
       <div class="fields">
         <div class="field"><label for="nTitle">Name</label>
-          <input class="input" id="nTitle" placeholder="Investor Deck" autocomplete="off">
+          <input class="input" id="nTitle" placeholder="Name of asset" autocomplete="off">
           <small>Viewers see this name before they enter their email.</small></div>
-        <div class="field"><label for="nSlug">Content folder</label>
-          <div class="prefix"><span>items/</span><input class="input" id="nSlug" placeholder="upx-deck" autocomplete="off" spellcheck="false"></div>
-          <small>Where the asset's files are deployed. Lowercase letters, numbers and dashes.</small></div>
       </div>
       <div class="preview">${ICON.lock}<span>Viewers will read: “To view <b id="pvName">your asset</b>, please enter your email.”</span></div>
       <div class="actions"><span class="form-error" id="nErr" style="margin-right:auto;align-self:center"></span>
         <button class="btn ghost" type="button" id="nCancel">Cancel</button>
         <button class="btn primary" type="submit" id="nSubmit">Create asset</button></div>
     </form>`;
-    const f = slot.querySelector('#newForm'), t = f.querySelector('#nTitle'), s = f.querySelector('#nSlug'),
+    const f = slot.querySelector('#newForm'), t = f.querySelector('#nTitle'),
           pv = f.querySelector('#pvName'), err = f.querySelector('#nErr');
-    let slugTouched = false;
-    const toSlug = (v) => v.toLowerCase().trim().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 60);
-    t.oninput = () => { pv.textContent = t.value.trim() || 'your asset'; if (!slugTouched) s.value = toSlug(t.value); err.textContent = ''; };
-    s.oninput = () => { slugTouched = true; s.value = s.value.toLowerCase().replace(/[^a-z0-9-]/g, ''); err.textContent = ''; };
+    // The storage folder is plumbing: made from the name, never shown or typed.
+    const toSlug = (v) => v.toLowerCase().trim().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 54) || 'asset';
+    t.oninput = () => { pv.textContent = t.value.trim() || 'your asset'; err.textContent = ''; };
     f.querySelector('#nCancel').onclick = close;
     f.onkeydown = (e) => { if (e.key === 'Escape') close(); };
     f.onsubmit = async (e) => {
       e.preventDefault();
       if (!t.value.trim()) { err.textContent = 'Give the asset a name.'; t.focus(); return; }
-      if (!s.value.trim()) { err.textContent = 'Add the content folder.'; s.focus(); return; }
       const b = f.querySelector('#nSubmit'); b.disabled = true; b.textContent = 'Creating…';
-      try {
-        const it = await api('/items', { method: 'POST', body: JSON.stringify({ title: t.value.trim(), slug: s.value.trim() }) });
-        toast('Asset created'); location.hash = '#/assets/' + it.id;
-      } catch (ex) {
-        b.disabled = false; b.textContent = 'Create asset';
-        err.textContent = /exists/.test(ex.message) ? 'That content folder is already used by another asset.' : 'Could not create it: ' + ex.message;
+      const base = toSlug(t.value);
+      for (let n = 1; n <= 20; n++) {
+        try {
+          const it = await api('/items', { method: 'POST', body: JSON.stringify({ title: t.value.trim(), slug: n === 1 ? base : base + '-' + n }) });
+          toast('Asset created'); location.hash = '#/assets/' + it.id; return;
+        } catch (ex) {
+          if (/exists/.test(ex.message) && n < 20) continue;
+          b.disabled = false; b.textContent = 'Create asset';
+          err.textContent = 'Could not create it: ' + ex.message; return;
+        }
       }
     };
     t.focus();
