@@ -5,167 +5,274 @@
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="robots" content="noindex, nofollow">
 <meta name="theme-color" content="#000000">
+<meta name="color-scheme" content="dark">
 <link rel="icon" href="data:,">
 <title>Online Viewer</title>
 <style>
   :root {
-    --bg: #000; --rail: #0a0a0a; --raise: #141414; --line: #222; --line-soft: #181818;
-    --text: #f5f5f5; --muted: #9a9a9a; --faint: #666;
-    --violet: #5227ff; --violet-soft: rgba(82,39,255,.16); --violet-text: #b3a3ff;
-    --danger: #ff6b6b; --ok: #6ee7a8;
-    --ease: cubic-bezier(.22,1,.36,1);
+    --bg: #000; --rail: #08080a; --raise: #121215; --raise-2: #1a1a1e; --sel: #1f1f24;
+    --line: #232328; --line-soft: #16161a;
+    --text: #f4f4f6; --muted: #a1a1aa; --faint: #8b8b94;
+    --cyan: #68d8ff; --cyan-soft: rgba(104,216,255,.12);
+    --danger: #ff6b74; --danger-soft: rgba(255,107,116,.1);
+    --ease: cubic-bezier(.16,1,.3,1);
+    --r: 12px; --r-sm: 9px;
   }
   * { margin: 0; padding: 0; box-sizing: border-box; }
-  html, body { height: 100%; background: var(--bg); color: var(--text);
+  html { scrollbar-color: #2c2c32 transparent; }
+  html, body { min-height: 100%; background: var(--bg); color: var(--text);
     font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-    font-size: 15px; -webkit-font-smoothing: antialiased; }
-  ::selection { background: rgba(82,39,255,.55); color: #fff; }
+    font-size: 15px; line-height: 1.45; -webkit-font-smoothing: antialiased; }
+  body { overflow-x: hidden; }
+  ::selection { background: rgba(104,216,255,.32); color: #fff; }
+  ::-webkit-scrollbar { width: 10px; height: 10px; }
+  ::-webkit-scrollbar-thumb { background: #26262b; border-radius: 10px; border: 3px solid var(--bg); }
   button, input { font: inherit; color: inherit; }
-  button { cursor: pointer; }
-  :focus-visible { outline: 2px solid #fff; outline-offset: 2px; }
+  button { cursor: pointer; background: none; border: none; }
+  a { color: inherit; }
+  :focus-visible { outline: 2px solid var(--text); outline-offset: 2px; border-radius: 6px; }
+  [hidden] { display: none !important; }
+  .num { font-variant-numeric: tabular-nums; }
+  .sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+  svg.i { width: 16px; height: 16px; flex: none; }
 
-  .app { display: grid; grid-template-columns: 232px 1fr; min-height: 100vh; }
-  .rail { background: var(--rail); border-right: 1px solid var(--line-soft); padding: 26px 14px;
-    position: sticky; top: 0; height: 100vh; display: flex; flex-direction: column; gap: 30px; }
-  .brand { display: flex; flex-direction: column; gap: 10px; padding: 0 10px; }
-  .brand img { width: 128px; height: auto; opacity: .9; }
-  .brand span { font-size: 13px; color: var(--muted); }
-  nav { display: flex; flex-direction: column; gap: 2px; }
-  nav a { display: flex; align-items: center; gap: 11px; padding: 9px 10px; border-radius: 8px;
-    color: var(--muted); text-decoration: none; font-weight: 500; transition: background-color .15s, color .15s; }
-  nav a svg { width: 17px; height: 17px; flex: none; }
+  /* ---------- shell ---------- */
+  .app { display: grid; grid-template-columns: 240px minmax(0, 1fr); min-height: 100vh;
+    background: linear-gradient(to right, var(--rail) 239px, var(--line-soft) 239px 240px, var(--bg) 240px); }
+  .rail { background: var(--rail); border-right: 1px solid var(--line-soft); padding: 28px 16px 24px;
+    position: sticky; top: 0; height: 100vh; display: flex; flex-direction: column; gap: 36px; }
+  .brand { display: grid; gap: 12px; padding: 0 8px; text-decoration: none; }
+  .brand img { width: 118px; height: auto; display: block; }
+  .brand span { font-size: 13px; font-weight: 500; color: var(--muted); letter-spacing: .01em; }
+  nav { display: grid; gap: 4px; }
+  nav a { display: flex; align-items: center; gap: 12px; padding: 9px 10px; border-radius: var(--r-sm);
+    color: var(--muted); text-decoration: none; font-weight: 500; font-size: 14.5px;
+    transition: background-color .18s var(--ease), color .18s var(--ease); }
   nav a:hover { color: var(--text); background: var(--raise); }
-  nav a[aria-current=page] { color: var(--text); background: var(--raise);
-    box-shadow: inset 2px 0 0 var(--violet); }
+  nav a[aria-current=page] { color: var(--text); background: var(--sel); }
+  nav a .badge { margin-left: auto; font-size: 12px; color: var(--faint); font-variant-numeric: tabular-nums; }
+  nav a[aria-current=page] .badge { color: var(--muted); }
+  .rail-foot { margin-top: auto; padding: 0 10px; font-size: 12.5px; color: var(--faint); line-height: 1.5; }
 
-  main { padding: 40px clamp(20px, 4vw, 56px) 96px; min-width: 0; max-width: 1180px; }
-  .head { display: flex; align-items: flex-end; justify-content: space-between; gap: 16px; margin-bottom: 28px; flex-wrap: wrap; }
-  h1 { font-size: 28px; font-weight: 600; letter-spacing: -.02em; line-height: 1.15; }
-  .lede { color: var(--muted); margin-top: 6px; line-height: 1.5; max-width: 60ch; }
+  main { padding: 44px clamp(20px, 4vw, 64px) 120px; min-width: 0; }
+  .page { max-width: 1040px; margin: 0 auto; }
+
+  /* ---------- page header ---------- */
+  .head { display: flex; align-items: flex-end; justify-content: space-between; gap: 24px; margin-bottom: 32px; flex-wrap: wrap; }
+  .head > div { min-width: 0; }
+  h1 { font-size: 26px; font-weight: 650; letter-spacing: -.022em; line-height: 1.15; text-wrap: balance; }
+  .lede { color: var(--muted); margin-top: 8px; line-height: 1.5; max-width: 58ch; font-size: 14.5px; }
+  h2 { font-size: 16px; font-weight: 600; letter-spacing: -.01em; }
   .back { display: inline-flex; align-items: center; gap: 6px; color: var(--muted); text-decoration: none;
-    font-size: 14px; margin-bottom: 14px; }
-  .back:hover { color: var(--text); }
-  h2 { font-size: 17px; font-weight: 600; letter-spacing: -.01em; }
-  .count { color: var(--muted); font-size: 14px; }
+    font-size: 14px; margin-bottom: 18px; padding: 4px 8px 4px 4px; margin-left: -4px; border-radius: 7px;
+    transition: color .15s, background-color .15s; }
+  .back:hover { color: var(--text); background: var(--raise); }
+  .back svg { width: 15px; height: 15px; }
 
-  .btn { display: inline-flex; align-items: center; gap: 8px; min-height: 38px; padding: 8px 16px;
-    border-radius: 8px; border: 1px solid var(--line); background: transparent; font-weight: 500; font-size: 14px;
-    transition: background-color .15s, border-color .15s; white-space: nowrap; }
-  .btn:hover { background: var(--raise); border-color: #333; }
-  .btn.primary { background: var(--text); color: #000; border-color: var(--text); font-weight: 600; }
+  /* ---------- buttons & inputs ---------- */
+  .btn { display: inline-flex; align-items: center; justify-content: center; gap: 8px; min-height: 38px; padding: 8px 15px;
+    border-radius: var(--r-sm); background: var(--raise-2); color: var(--text); font-weight: 550; font-size: 14px;
+    transition: background-color .18s var(--ease), color .18s, transform .12s var(--ease), opacity .18s; white-space: nowrap; text-decoration: none; }
+  .btn:hover { background: #26262b; }
+  .btn:active { transform: scale(.98); }
+  .btn:disabled { opacity: .45; cursor: default; transform: none; }
+  .btn.primary { background: var(--text); color: #000; }
   .btn.primary:hover { background: #fff; }
-  .btn.quiet { border-color: transparent; color: var(--muted); }
-  .btn.quiet:hover { color: var(--text); }
-  .btn.danger { color: var(--danger); border-color: rgba(255,107,107,.3); }
-  .btn.danger:hover { background: rgba(255,107,107,.08); }
+  .btn.ghost { background: transparent; color: var(--muted); }
+  .btn.ghost:hover { background: var(--raise); color: var(--text); }
+  .btn.danger { background: transparent; color: var(--danger); }
+  .btn.danger:hover { background: var(--danger-soft); }
   .btn svg { width: 15px; height: 15px; }
 
-  input[type=text], input[type=password] { min-height: 38px; padding: 8px 12px; border-radius: 8px;
-    border: 1px solid var(--line); background: #0d0d0d; outline: none; font-size: 14px; min-width: 0;
-    transition: border-color .15s; }
-  input::placeholder { color: var(--faint); }
-  input:focus { border-color: #6b6b6b; }
+  .field { display: grid; gap: 7px; min-width: 0; }
+  .field label { font-size: 13px; font-weight: 550; color: var(--text); }
+  .field small { font-size: 12.5px; color: var(--faint); line-height: 1.45; }
+  .input { width: 100%; min-height: 42px; padding: 9px 13px; border-radius: var(--r-sm); border: 1px solid var(--line);
+    background: #0b0b0d; outline: none; font-size: 14.5px; caret-color: var(--cyan);
+    transition: border-color .15s, box-shadow .15s; }
+  .input::placeholder { color: #6f6f78; }
+  .input:hover { border-color: #303036; }
+  .input:focus { border-color: #4a4a52; box-shadow: 0 0 0 3px rgba(255,255,255,.06); }
+  .prefix { display: flex; align-items: center; border: 1px solid var(--line); border-radius: var(--r-sm); background: #0b0b0d;
+    transition: border-color .15s, box-shadow .15s; min-width: 0; }
+  .prefix:focus-within { border-color: #4a4a52; box-shadow: 0 0 0 3px rgba(255,255,255,.06); }
+  .prefix span { padding-left: 13px; color: var(--faint); font-size: 14.5px; white-space: nowrap; }
+  .prefix .input { border: none; background: transparent; box-shadow: none; padding-left: 2px; }
 
-  /* asset list: rows, not cards — one line per thing we have online */
-  .list { border-top: 1px solid var(--line); }
-  .asset-row { display: grid; grid-template-columns: 1fr 110px 90px 170px 20px; align-items: center; gap: 16px;
-    padding: 18px 6px; border-bottom: 1px solid var(--line-soft); text-decoration: none; color: inherit;
-    transition: background-color .15s; }
-  .asset-row:hover { background: #070707; }
-  .asset-row .t { font-weight: 600; font-size: 16px; letter-spacing: -.01em; }
-  .asset-row .s { color: var(--muted); font-size: 13px; margin-top: 3px; }
-  .asset-row .n { color: var(--muted); font-size: 14px; font-variant-numeric: tabular-nums; }
-  .asset-row .chev { color: var(--faint); }
-  .mode { display: inline-flex; align-items: center; gap: 6px; font-size: 13px; font-weight: 500; color: var(--muted); }
-  .mode::before { content: ""; width: 7px; height: 7px; border-radius: 50%; background: #555; }
-  .mode.public { color: var(--violet-text); }
-  .mode.public::before { background: var(--violet); box-shadow: 0 0 0 3px var(--violet-soft); }
+  /* ---------- access tag ---------- */
+  .tag { display: inline-flex; align-items: center; gap: 6px; height: 26px; padding: 0 10px 0 8px; border-radius: 999px;
+    font-size: 12.5px; font-weight: 550; background: var(--raise-2); color: var(--muted); white-space: nowrap; }
+  .tag svg { width: 13px; height: 13px; }
+  .tag.public { background: var(--cyan-soft); color: var(--cyan); }
 
-  /* asset page */
-  .switch { display: inline-flex; padding: 3px; border-radius: 10px; background: var(--raise); border: 1px solid var(--line); }
-  .switch button { border: none; background: transparent; padding: 7px 16px; border-radius: 7px; color: var(--muted);
-    font-weight: 500; font-size: 14px; transition: background-color .2s var(--ease), color .2s; }
-  .switch button[aria-pressed=true] { background: var(--text); color: #000; }
-  .section { margin-top: 36px; }
-  .section > .bar { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; margin-bottom: 14px; }
-  .explain { color: var(--muted); font-size: 14px; line-height: 1.5; margin-bottom: 14px; max-width: 64ch; }
-  .share { display: flex; align-items: center; gap: 10px; padding: 12px 12px 12px 16px; border: 1px solid var(--line);
-    border-radius: 10px; background: #070707; }
-  .share code { flex: 1; min-width: 0; font-family: ui-monospace, "SF Mono", Menlo, monospace; font-size: 13.5px;
+  /* ---------- composer (new asset) ---------- */
+  .composer { background: var(--raise); border-radius: var(--r); padding: 24px; margin-bottom: 28px;
+    display: grid; gap: 20px; animation: rise .32s var(--ease) both; }
+  .composer-top { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; }
+  .composer-top p { color: var(--muted); font-size: 13.5px; }
+  .composer .fields { display: grid; grid-template-columns: minmax(0, 1.3fr) minmax(0, 1fr); gap: 16px; }
+  .composer .preview { display: flex; align-items: center; gap: 10px; font-size: 13.5px; color: var(--muted);
+    padding-top: 16px; border-top: 1px solid var(--line); }
+  .composer .preview svg { width: 15px; height: 15px; flex: none; }
+  .composer .preview b { color: var(--text); font-weight: 550; }
+  .composer .actions { display: flex; justify-content: flex-end; gap: 8px; }
+  .form-error { color: var(--danger); font-size: 13px; }
+  @keyframes rise { from { opacity: 0; transform: translateY(-6px); } }
+
+  /* ---------- asset list ---------- */
+  .assets { display: grid; gap: 2px; }
+  .asset { display: grid; grid-template-columns: 44px minmax(0, 1fr) 96px 110px 136px 18px; align-items: center; gap: 18px;
+    padding: 16px 16px; border-radius: var(--r); text-decoration: none; color: inherit;
+    transition: background-color .18s var(--ease); }
+  .asset:hover { background: var(--raise); }
+  .asset:hover .chev { color: var(--text); transform: translateX(2px); }
+  .glyph { width: 44px; height: 44px; border-radius: 11px; background: var(--raise-2); display: grid; place-items: center; color: var(--muted); }
+  .asset:hover .glyph { background: #24242a; }
+  .glyph svg { width: 20px; height: 20px; }
+  .asset .t { font-weight: 600; font-size: 15.5px; letter-spacing: -.01em; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .asset .s { color: var(--faint); font-size: 13px; margin-top: 3px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .asset .n { color: var(--muted); font-size: 14px; }
+  .asset .n b { color: var(--text); font-weight: 600; }
+  .chev { color: var(--faint); transition: color .18s, transform .18s var(--ease); }
+  .chev svg { width: 16px; height: 16px; display: block; }
+  .list-head { display: grid; grid-template-columns: 44px minmax(0, 1fr) 96px 110px 136px 18px; gap: 18px;
+    padding: 0 16px 10px; font-size: 12.5px; color: var(--faint); font-weight: 500; border-bottom: 1px solid var(--line-soft); margin-bottom: 6px; }
+
+  /* ---------- viewers list (fits the width, never scrolls sideways) ---------- */
+  .vlist { display: grid; }
+  .vrow { display: grid; grid-template-columns: minmax(0, 2.1fr) minmax(0, 1.5fr) 104px 72px minmax(124px, .9fr);
+    gap: 20px; align-items: center; padding: 15px 4px; border-bottom: 1px solid var(--line-soft); }
+  .vrow.nocol-asset { grid-template-columns: minmax(0, 2.4fr) 104px 72px minmax(124px, 1fr) minmax(124px, 1fr); }
+  .vhead { padding-top: 0; padding-bottom: 10px; font-size: 12.5px; color: var(--faint); font-weight: 500; border-bottom-color: var(--line); }
+  .cell { min-width: 0; }
+  .cell .p { font-weight: 550; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .cell .q { color: var(--faint); font-size: 13px; margin-top: 2px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .cell a.p { text-decoration: none; display: block; font-weight: 500; }
+  .cell a.p:hover { text-decoration: underline; text-underline-offset: 3px; text-decoration-color: var(--faint); }
+  .device { display: inline-flex; align-items: center; gap: 7px; color: var(--muted); font-size: 14px; }
+  .device svg { width: 15px; height: 15px; }
+  .sess { font-size: 14px; color: var(--text); }
+  .vlab { display: none; }
+
+  /* ---------- asset page ---------- */
+  .title-edit { display: block; resize: none; overflow: hidden; font-family: inherit; font-size: 26px; font-weight: 650; letter-spacing: -.022em; line-height: 1.2; background: transparent;
+    border: 1px solid transparent; border-radius: 9px; padding: 2px 8px; margin-left: -9px; width: 100%; max-width: 640px;
+    outline: none; caret-color: var(--cyan); transition: border-color .15s, background-color .15s; }
+  .title-edit:hover { background: var(--raise); }
+  .title-edit:focus { border-color: #4a4a52; background: #0b0b0d; }
+  .seg { display: inline-flex; padding: 4px; border-radius: 11px; background: var(--raise); gap: 2px; }
+  .seg button { display: inline-flex; align-items: center; gap: 7px; padding: 7px 14px; border-radius: 8px; color: var(--muted);
+    font-weight: 550; font-size: 14px; transition: background-color .2s var(--ease), color .2s; }
+  .seg button svg { width: 14px; height: 14px; }
+  .seg button:hover { color: var(--text); }
+  .seg button[aria-pressed=true] { background: var(--sel); color: var(--text); box-shadow: 0 1px 2px rgba(0,0,0,.5); }
+  .seg button[data-vis=public][aria-pressed=true] svg { color: var(--cyan); }
+
+  .section { margin-top: 44px; }
+  .section > .bar { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; margin-bottom: 8px; }
+  .count { color: var(--faint); font-size: 13.5px; }
+  .explain { color: var(--muted); font-size: 14px; line-height: 1.5; margin-bottom: 16px; max-width: 64ch; }
+  .share { display: flex; align-items: center; gap: 8px; padding: 8px 8px 8px 16px; border-radius: var(--r); background: var(--raise); }
+  .share .url { flex: 1; min-width: 0; font-family: ui-monospace, "SF Mono", Menlo, monospace; font-size: 13.5px;
     color: var(--text); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-  .guest { display: grid; grid-template-columns: 1fr auto auto; align-items: center; gap: 12px; padding: 12px 0;
-    border-bottom: 1px solid var(--line-soft); }
-  .guest .who { font-weight: 500; }
-  .guest .sub { color: var(--muted); font-size: 13px; margin-top: 3px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-  .new-guest { display: grid; grid-template-columns: 1.3fr 1fr 1fr auto; gap: 8px; margin-top: 14px; }
-  .title-edit { font-size: 28px; font-weight: 600; letter-spacing: -.02em; background: transparent; border: 1px solid transparent;
-    border-radius: 8px; padding: 2px 8px; margin-left: -9px; width: 100%; max-width: 640px; outline: none; }
-  .title-edit:hover { border-color: var(--line); }
-  .title-edit:focus { border-color: #6b6b6b; }
+  .guests { display: grid; gap: 2px; margin-bottom: 14px; }
+  .guest { display: grid; grid-template-columns: 36px minmax(0, 1fr) auto auto; align-items: center; gap: 14px; padding: 12px;
+    border-radius: var(--r); transition: background-color .15s; }
+  .guest:hover { background: var(--raise); }
+  .avatar { width: 36px; height: 36px; border-radius: 50%; background: var(--raise-2); display: grid; place-items: center;
+    font-size: 13px; font-weight: 600; color: var(--muted); text-transform: uppercase; }
+  .guest .who { font-weight: 550; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .guest .sub { color: var(--faint); font-size: 13px; margin-top: 2px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .new-guest { background: var(--raise); border-radius: var(--r); padding: 20px; display: grid; gap: 16px; }
+  .new-guest .fields { display: grid; grid-template-columns: minmax(0, 1.3fr) minmax(0, 1fr) minmax(0, 1fr); gap: 14px; }
+  .new-guest .actions { display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap; }
+  .new-guest .actions small { color: var(--faint); font-size: 12.5px; }
 
-  /* viewers table */
-  .table-wrap { overflow-x: auto; border-top: 1px solid var(--line); }
-  table { width: 100%; border-collapse: collapse; font-size: 14px; }
-  th { text-align: left; font-weight: 500; color: var(--muted); font-size: 13px; padding: 14px 14px 12px 0; white-space: nowrap;
-    border-bottom: 1px solid var(--line); }
-  td { padding: 15px 14px 15px 0; border-bottom: 1px solid var(--line-soft); white-space: nowrap; font-variant-numeric: tabular-nums; }
-  td.email { font-weight: 500; }
-  td .dim { color: var(--muted); }
-  td.num { text-align: right; padding-right: 28px; }
-  th.num { text-align: right; padding-right: 28px; }
-  .device { display: inline-flex; align-items: center; gap: 7px; }
-  .device svg { width: 15px; height: 15px; color: var(--muted); }
+  /* ---------- empty & loading ---------- */
+  .empty { padding: 56px 24px; text-align: center; border-radius: var(--r); background: var(--rail); border: 1px dashed var(--line); }
+  .empty b { display: block; font-weight: 600; font-size: 15px; margin-bottom: 6px; }
+  .empty p { color: var(--muted); font-size: 14px; max-width: 46ch; margin: 0 auto; line-height: 1.55; }
+  .empty .btn { margin-top: 18px; }
+  .skel { height: 76px; border-radius: var(--r); background: linear-gradient(90deg, var(--rail), var(--raise), var(--rail));
+    background-size: 200% 100%; animation: shimmer 1.4s linear infinite; margin-bottom: 4px; }
+  @keyframes shimmer { to { background-position: -200% 0; } }
 
-  .empty { padding: 44px 0; color: var(--muted); line-height: 1.6; max-width: 52ch; }
-  .empty b { color: var(--text); font-weight: 600; }
-  .new-asset { display: grid; grid-template-columns: 1.4fr 1fr auto auto; gap: 8px; margin-bottom: 24px; }
-  .hint { color: var(--faint); font-size: 13px; margin: -16px 0 24px; }
-
-  .toast { position: fixed; left: 50%; bottom: 28px; transform: translate(-50%, 16px); opacity: 0;
-    background: var(--text); color: #000; padding: 10px 18px; border-radius: 999px; font-size: 14px; font-weight: 500;
-    pointer-events: none; transition: opacity .25s var(--ease), transform .25s var(--ease); max-width: calc(100vw - 32px); }
+  .toast { position: fixed; left: 50%; bottom: 28px; transform: translate(-50%, 14px); opacity: 0;
+    background: var(--text); color: #000; padding: 10px 18px; border-radius: 999px; font-size: 14px; font-weight: 550;
+    pointer-events: none; box-shadow: 0 10px 30px rgba(0,0,0,.5);
+    transition: opacity .25s var(--ease), transform .25s var(--ease); max-width: calc(100vw - 32px); }
   .toast.show { opacity: 1; transform: translate(-50%, 0); }
-  .toast.err { background: var(--danger); color: #000; }
-  @media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+  .toast.err { background: var(--danger); }
 
-  @media (max-width: 860px) {
-    .app { grid-template-columns: 1fr; }
+  @media (prefers-reduced-motion: reduce) { *, *::before { transition: none !important; animation: none !important; } }
+
+  /* ---------- medium: viewers list goes two-line ---------- */
+  @media (max-width: 1100px) {
+    .vrow, .vrow.nocol-asset { grid-template-columns: minmax(0, 1fr) auto; gap: 6px 16px; padding: 14px 4px; }
+    .vhead { display: none; }
+    .vrow .c-asset, .vrow .c-dev, .vrow .c-sess, .vrow .c-first { grid-column: 1; }
+    .vrow .c-last { grid-column: 2; grid-row: 1; text-align: right; }
+    .vrow .meta { grid-column: 1 / -1; display: flex; flex-wrap: wrap; gap: 4px 18px; color: var(--muted); font-size: 13px; }
+    .vlab { display: inline; color: var(--faint); }
+    .vrow .c-asset { flex-basis: 100%; margin-bottom: 2px; }
+  }
+  @media (min-width: 1101px) { .vrow .meta { display: contents; } }
+
+  /* ---------- small: rail becomes a top bar ---------- */
+  @media (max-width: 820px) {
+    .app { grid-template-columns: minmax(0, 1fr); background: var(--bg); }
     .rail { position: sticky; z-index: 5; height: auto; flex-direction: row; align-items: center; justify-content: space-between;
-      padding: 12px 16px; border-right: none; border-bottom: 1px solid var(--line-soft); }
-    .brand span { display: none; }
-    .brand img { width: 104px; }
-    nav { flex-direction: row; }
-    nav a[aria-current=page] { box-shadow: inset 0 -2px 0 var(--violet); }
-    main { padding: 28px 16px 80px; }
-    .asset-row { grid-template-columns: 1fr auto; }
-    .asset-row .n, .asset-row .chev, .asset-row .last { display: none; }
-    .new-guest, .new-asset { grid-template-columns: 1fr; }
-    .guest { grid-template-columns: 1fr auto; }
+      padding: 12px 16px; border-right: none; border-bottom: 1px solid var(--line-soft); gap: 12px; background: rgba(8,8,10,.92);
+      backdrop-filter: saturate(140%) blur(14px); -webkit-backdrop-filter: saturate(140%) blur(14px); }
+    .brand span, .rail-foot, nav a .badge { display: none; }
+    .brand img { width: 96px; }
+    nav { grid-auto-flow: column; }
+    nav a { padding: 8px 12px; }
+    main { padding: 28px 16px 96px; }
+    .head { margin-bottom: 24px; }
+    .head .btn.primary { width: 100%; }
+    .asset { grid-template-columns: 40px minmax(0, 1fr) auto; gap: 14px; padding: 14px 10px; }
+    .glyph { width: 40px; height: 40px; }
+    .asset .n, .asset .chev, .list-head { display: none; }
+    .composer { padding: 18px; }
+    .composer .fields, .new-guest .fields { grid-template-columns: minmax(0, 1fr); }
+    .composer .actions .btn { flex: 1; }
+    .guest { grid-template-columns: 36px minmax(0, 1fr) auto; }
     .guest .copy-only { display: none; }
+    .share { flex-wrap: wrap; padding: 12px; }
+    .share .url { flex-basis: 100%; padding: 2px 4px 6px; }
+    .share .btn { flex: 1; }
   }
 </style>
 </head>
 <body>
 <div class="app">
   <aside class="rail">
-    <div class="brand"><img src="/brand/logo.svg" alt="Unlimited Power"><span>Online Viewer</span></div>
+    <a class="brand" href="#/assets"><img src="/brand/logo.svg" alt="Unlimited Power"><span>Online Viewer</span></a>
     <nav aria-label="Main">
       <a href="#/assets" data-nav="assets">
-        <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true"><rect x="3" y="3" width="14" height="14" rx="3"/><path d="M3 8h14"/></svg>Assets</a>
+        <svg class="i" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round" aria-hidden="true"><path d="M5 2.75h6.5L15 6.25v11H5z"/><path d="M11.25 2.75v3.75H15"/></svg>Assets<span class="badge" id="nAssets"></span></a>
       <a href="#/viewers" data-nav="viewers">
-        <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true"><path d="M1.8 10S5 4.5 10 4.5 18.2 10 18.2 10 15 15.5 10 15.5 1.8 10 1.8 10z"/><circle cx="10" cy="10" r="2.5"/></svg>Viewers</a>
+        <svg class="i" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true"><circle cx="7.5" cy="7" r="3"/><path d="M2 16.5c.6-2.8 2.8-4.5 5.5-4.5s4.9 1.7 5.5 4.5"/><path d="M13 4.2a3 3 0 0 1 0 5.6M15 12.4c1.5.6 2.6 2 3 4.1"/></svg>Viewers<span class="badge" id="nViewers"></span></a>
     </nav>
+    <p class="rail-foot">Every viewer leaves their email before they see anything.</p>
   </aside>
-  <main id="view" aria-live="polite"></main>
+  <main id="view" aria-live="polite"><div class="page"><div class="skel"></div><div class="skel"></div></div></main>
 </div>
 <div class="toast" id="toast" role="status"></div>
 
 <script>
 const ICON = {
+  doc: '<svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round" aria-hidden="true"><path d="M5 2.75h6.5L15 6.25v11H5z"/><path d="M11.25 2.75v3.75H15M7.5 10.5h5M7.5 13.5h3.5"/></svg>',
+  globe: '<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><circle cx="8" cy="8" r="6.25"/><path d="M1.75 8h12.5M8 1.75c1.7 1.8 2.5 3.9 2.5 6.25S9.7 12.45 8 14.25C6.3 12.45 5.5 10.35 5.5 8S6.3 3.55 8 1.75z"/></svg>',
+  lock: '<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><rect x="3" y="7" width="10" height="7" rx="1.75"/><path d="M5.25 7V5a2.75 2.75 0 0 1 5.5 0v2"/></svg>',
   desktop: '<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4" aria-hidden="true"><rect x="1.5" y="2.5" width="13" height="8.5" rx="1.5"/><path d="M5.5 14h5M8 11v3"/></svg>',
   mobile: '<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4" aria-hidden="true"><rect x="4.5" y="1.5" width="7" height="13" rx="1.5"/><path d="M7.2 12.3h1.6"/></svg>',
   copy: '<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><rect x="5.5" y="5.5" width="8" height="8" rx="1.5"/><path d="M10.5 5.5V3.8c0-.7-.6-1.3-1.3-1.3H3.8c-.7 0-1.3.6-1.3 1.3v5.4c0 .7.6 1.3 1.3 1.3h1.7"/></svg>',
   open: '<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><path d="M9 2.5h4.5V7M13.5 2.5 7.5 8.5M12 9.5v3c0 .6-.4 1-1 1H3.5c-.6 0-1-.4-1-1V5c0-.6.4-1 1-1h3"/></svg>',
+  plus: '<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" aria-hidden="true"><path d="M8 3v10M3 8h10"/></svg>',
+  chev: '<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m6 3.5 4.5 4.5L6 12.5"/></svg>',
+  back: '<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10 3.5 5.5 8l4.5 4.5"/></svg>',
 };
 
 async function api(path, opts) {
@@ -176,14 +283,23 @@ async function api(path, opts) {
   return r.json();
 }
 const esc = (s) => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
-const fmt = (iso) => {
+const day = (iso, withYear) => new Date(iso).toLocaleDateString(undefined, withYear ? { month: 'short', day: 'numeric', year: 'numeric' } : { month: 'short', day: 'numeric' });
+const time = (iso) => new Date(iso).toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' });
+function when(iso) {
   if (!iso) return '';
-  const d = new Date(iso);
-  return d.toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' }) +
-    ' <span class="dim">' + d.toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' }) + '</span>';
-};
+  const d = new Date(iso), now = new Date();
+  const mins = Math.round((now - d) / 60000);
+  if (mins < 1) return 'Just now';
+  if (mins < 60) return mins + ' min ago';
+  if (d.toDateString() === now.toDateString()) return 'Today, ' + time(iso);
+  const y = new Date(now); y.setDate(now.getDate() - 1);
+  if (d.toDateString() === y.toDateString()) return 'Yesterday, ' + time(iso);
+  return day(iso, d.getFullYear() !== now.getFullYear()) + ', ' + time(iso);
+}
+const plural = (n, w) => n + ' ' + w + (n === 1 ? '' : 's');
 const publicUrl = (it) => location.origin + '/a/' + it.public_token + '/';
 const guestUrl = (l) => location.origin + '/v/' + l.token + '/';
+const initials = (s) => String(s || '?').trim().split(/\s+/).slice(0, 2).map(w => w[0]).join('');
 
 let toastTimer;
 function toast(msg, isErr) {
@@ -195,128 +311,179 @@ async function copy(text, msg) {
   try { await navigator.clipboard.writeText(text); toast(msg || 'Link copied'); }
   catch (e) { prompt('Copy this link:', text); }
 }
-
-function deviceCell(d) {
-  if (d === 'both') return '<span class="device">' + ICON.desktop + ICON.mobile + 'Both</span>';
-  if (d === 'mobile') return '<span class="device">' + ICON.mobile + 'Mobile</span>';
-  if (d === 'desktop') return '<span class="device">' + ICON.desktop + 'Desktop</span>';
-  return '<span class="dim">Unknown</span>';
+function badges(items, viewers) {
+  document.getElementById('nAssets').textContent = items ? items.length : '';
+  document.getElementById('nViewers').textContent = viewers ? viewers.length : '';
 }
 
-function viewersTable(rows, { showAsset, showVia }) {
-  if (!rows.length) return '';
-  return `<div class="table-wrap"><table>
-    <thead><tr>
-      <th scope="col">Email</th>${showAsset ? '<th scope="col">Asset</th>' : ''}${showVia ? '<th scope="col">Came in through</th>' : ''}
-      <th scope="col">Device</th><th scope="col" class="num">Sessions</th>
-      <th scope="col">First viewed</th><th scope="col">Last seen</th><th scope="col">IP</th>
-    </tr></thead><tbody>
-    ${rows.map(r => `<tr>
-      <td class="email">${esc(r.email)}</td>
-      ${showAsset ? `<td><a href="#/assets/${r.item_id}" style="color:inherit">${esc(r.item_title)}</a></td>` : ''}
-      ${showVia ? `<td class="dim">${r.via === 'public' ? 'Public link' : esc(r.via)}</td>` : ''}
-      <td>${deviceCell(r.device)}</td>
-      <td class="num">${r.sessions}</td>
-      <td>${fmt(r.first_viewed)}</td>
-      <td>${fmt(r.last_seen)}</td>
-      <td class="dim">${esc(r.ip)}</td>
-    </tr>`).join('')}
-    </tbody></table></div>`;
+function accessTag(it) {
+  return it.visibility === 'public'
+    ? `<span class="tag public">${ICON.globe}Public</span>`
+    : `<span class="tag">${ICON.lock}Private</span>`;
+}
+function deviceCell(d) {
+  if (d === 'both') return `<span class="device">${ICON.desktop}${ICON.mobile}Both</span>`;
+  if (d === 'mobile') return `<span class="device">${ICON.mobile}Mobile</span>`;
+  if (d === 'desktop') return `<span class="device">${ICON.desktop}Desktop</span>`;
+  return '<span class="device">Unknown</span>';
+}
+
+// One row per viewer. Fits the page width at every size: wide screens get columns,
+// narrower screens fold the details under the email. Nothing ever scrolls sideways.
+function viewersList(rows, { showAsset }) {
+  const cls = showAsset ? 'vrow' : 'vrow nocol-asset';
+  const via = (r) => r.via === 'public' ? 'Public link' : esc(r.via);
+  return `<div class="vlist" role="table" aria-label="Viewers">
+    <div class="${cls} vhead" role="row">
+      <span role="columnheader">Viewer</span>${showAsset ? '<span role="columnheader">Asset</span>' : ''}
+      <span role="columnheader">Device</span><span role="columnheader">Sessions</span>
+      ${showAsset ? '' : '<span role="columnheader">First viewed</span>'}<span role="columnheader">Last seen</span>
+    </div>
+    ${rows.map(r => `<div class="${cls}" role="row">
+      <div class="cell" role="cell"><div class="p" title="${esc(r.email)}">${esc(r.email)}</div>
+        <div class="q">${r.ip ? esc(r.ip) : 'IP unknown'}${showAsset ? '' : ' · ' + via(r)}</div></div>
+      <div class="meta">
+        ${showAsset ? `<div class="cell c-asset" role="cell"><a class="p" href="#/assets/${r.item_id}" title="${esc(r.item_title)}">${esc(r.item_title)}</a>
+          <div class="q">via ${via(r)}</div></div>` : ''}
+        <div class="cell c-dev" role="cell"><span class="vlab">Device </span>${deviceCell(r.device)}</div>
+        <div class="cell c-sess sess num" role="cell"><span class="vlab">Sessions </span>${r.sessions}</div>
+        ${showAsset ? '' : `<div class="cell c-first num" role="cell"><span class="vlab">First viewed </span>${when(r.first_viewed)}</div>`}
+      </div>
+      <div class="cell c-last num" role="cell"><div class="p" style="font-weight:500">${when(r.last_seen)}</div>
+        ${showAsset ? `<div class="q">First ${day(r.first_viewed)}</div>` : ''}</div>
+    </div>`).join('')}
+  </div>`;
 }
 
 // ---------- views ----------
 async function assetsView(root) {
   const [items, viewers] = await Promise.all([api('/items'), api('/viewers')]);
+  badges(items, viewers);
   const stats = {};
   for (const v of viewers) {
     const s = stats[v.item_id] = stats[v.item_id] || { n: 0, last: '' };
     s.n++; if (v.last_seen > s.last) s.last = v.last_seen;
   }
-  root.innerHTML = `
+  root.innerHTML = `<div class="page">
     <div class="head">
-      <div><h1>Assets</h1><p class="lede">Everything we've put online. Each asset is public or private, and every viewer leaves their email first.</p></div>
-      <button class="btn primary" id="addBtn">New asset</button>
+      <div><h1>Assets</h1><p class="lede">Everything we have online. Open one to set who can see it and to copy its link.</p></div>
+      <button class="btn primary" id="addBtn">${ICON.plus}New asset</button>
     </div>
-    <form class="new-asset" id="newForm" hidden>
-      <input type="text" id="nTitle" placeholder="Name viewers will see, e.g. Investor Deck" required>
-      <input type="text" id="nSlug" placeholder="Content folder, e.g. upx-deck" required>
-      <button class="btn primary" type="submit">Create asset</button>
-      <button class="btn quiet" type="button" id="nCancel">Cancel</button>
-    </form>
-    <p class="hint" id="newHint" hidden>The content folder is where the asset's files are deployed. New assets start private.</p>
-    ${items.length ? `<div class="list">${items.map(it => {
-      const s = stats[it.id] || { n: 0, last: '' };
-      return `<a class="asset-row" href="#/assets/${it.id}">
-        <div><div class="t">${esc(it.title)}</div><div class="s">Added ${new Date(it.created_at).toLocaleDateString(undefined,{month:'short',day:'numeric',year:'numeric'})}</div></div>
-        <span class="mode ${it.visibility === 'public' ? 'public' : ''}">${it.visibility === 'public' ? 'Public' : 'Private'}</span>
-        <span class="n">${s.n} ${s.n === 1 ? 'viewer' : 'viewers'}</span>
-        <span class="n last">${s.last ? 'Last seen ' + new Date(s.last).toLocaleDateString(undefined,{month:'short',day:'numeric'}) : 'No views yet'}</span>
-        <span class="chev" aria-hidden="true">›</span>
-      </a>`;}).join('')}</div>`
-    : `<div class="empty"><b>Nothing is online yet.</b><br>Create an asset to get a link you can share.</div>`}`;
+    <div id="composerSlot"></div>
+    ${items.length ? `
+      <div class="list-head" aria-hidden="true"><span></span><span>Name</span><span>Access</span><span>Viewers</span><span>Last viewed</span><span></span></div>
+      <div class="assets">${items.map(it => {
+        const s = stats[it.id] || { n: 0, last: '' };
+        return `<a class="asset" href="#/assets/${it.id}">
+          <span class="glyph">${ICON.doc}</span>
+          <div style="min-width:0"><div class="t">${esc(it.title)}</div><div class="s">/${esc(it.slug)} · Added ${day(it.created_at, true)}</div></div>
+          <span>${accessTag(it)}</span>
+          <span class="n num"><b>${s.n}</b> ${s.n === 1 ? 'viewer' : 'viewers'}</span>
+          <span class="n num">${s.last ? when(s.last) : 'Not yet'}</span>
+          <span class="chev">${ICON.chev}</span>
+        </a>`;}).join('')}</div>`
+    : `<div class="empty"><b>Nothing is online yet</b><p>An asset is anything we share with a link, like a deck or a video. Create one, then choose public or private.</p></div>`}
+  </div>`;
 
-  const form = root.querySelector('#newForm'), hint = root.querySelector('#newHint');
-  root.querySelector('#addBtn').onclick = () => { form.hidden = false; hint.hidden = false; root.querySelector('#nTitle').focus(); };
-  root.querySelector('#nCancel').onclick = () => { form.hidden = true; hint.hidden = true; };
-  form.onsubmit = async (e) => {
-    e.preventDefault();
-    try {
-      const it = await api('/items', { method: 'POST', body: JSON.stringify({
-        title: root.querySelector('#nTitle').value.trim(), slug: root.querySelector('#nSlug').value.trim() }) });
-      toast('Asset created'); location.hash = '#/assets/' + it.id;
-    } catch (err) { toast('Could not create the asset: ' + err.message, true); }
+  const addBtn = root.querySelector('#addBtn'), slot = root.querySelector('#composerSlot');
+  const close = () => { slot.innerHTML = ''; addBtn.hidden = false; addBtn.focus(); };
+  addBtn.onclick = () => {
+    addBtn.hidden = true;
+    slot.innerHTML = `<form class="composer" id="newForm" novalidate>
+      <div class="composer-top"><h2>New asset</h2><p>New assets start private.</p></div>
+      <div class="fields">
+        <div class="field"><label for="nTitle">Name</label>
+          <input class="input" id="nTitle" placeholder="Investor Deck" autocomplete="off">
+          <small>Viewers see this name before they enter their email.</small></div>
+        <div class="field"><label for="nSlug">Content folder</label>
+          <div class="prefix"><span>items/</span><input class="input" id="nSlug" placeholder="upx-deck" autocomplete="off" spellcheck="false"></div>
+          <small>Where the asset's files are deployed. Lowercase letters, numbers and dashes.</small></div>
+      </div>
+      <div class="preview">${ICON.lock}<span>Viewers will read: “To view <b id="pvName">your asset</b>, please enter your email.”</span></div>
+      <div class="actions"><span class="form-error" id="nErr" style="margin-right:auto;align-self:center"></span>
+        <button class="btn ghost" type="button" id="nCancel">Cancel</button>
+        <button class="btn primary" type="submit" id="nSubmit">Create asset</button></div>
+    </form>`;
+    const f = slot.querySelector('#newForm'), t = f.querySelector('#nTitle'), s = f.querySelector('#nSlug'),
+          pv = f.querySelector('#pvName'), err = f.querySelector('#nErr');
+    let slugTouched = false;
+    const toSlug = (v) => v.toLowerCase().trim().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 60);
+    t.oninput = () => { pv.textContent = t.value.trim() || 'your asset'; if (!slugTouched) s.value = toSlug(t.value); err.textContent = ''; };
+    s.oninput = () => { slugTouched = true; s.value = s.value.toLowerCase().replace(/[^a-z0-9-]/g, ''); err.textContent = ''; };
+    f.querySelector('#nCancel').onclick = close;
+    f.onkeydown = (e) => { if (e.key === 'Escape') close(); };
+    f.onsubmit = async (e) => {
+      e.preventDefault();
+      if (!t.value.trim()) { err.textContent = 'Give the asset a name.'; t.focus(); return; }
+      if (!s.value.trim()) { err.textContent = 'Add the content folder.'; s.focus(); return; }
+      const b = f.querySelector('#nSubmit'); b.disabled = true; b.textContent = 'Creating…';
+      try {
+        const it = await api('/items', { method: 'POST', body: JSON.stringify({ title: t.value.trim(), slug: s.value.trim() }) });
+        toast('Asset created'); location.hash = '#/assets/' + it.id;
+      } catch (ex) {
+        b.disabled = false; b.textContent = 'Create asset';
+        err.textContent = /exists/.test(ex.message) ? 'That content folder is already used by another asset.' : 'Could not create it: ' + ex.message;
+      }
+    };
+    t.focus();
   };
 }
 
 async function assetView(root, id) {
   const [items, viewers] = await Promise.all([api('/items'), api('/viewers?item=' + id)]);
   const it = items.find(x => String(x.id) === String(id));
-  if (!it) { root.innerHTML = '<a class="back" href="#/assets">‹ Assets</a><div class="empty"><b>This asset no longer exists.</b></div>'; return; }
+  if (!it) { root.innerHTML = `<div class="page"><a class="back" href="#/assets">${ICON.back}Assets</a><div class="empty"><b>This asset no longer exists</b><p>It may have been removed.</p></div></div>`; return; }
   const isPublic = it.visibility === 'public';
   const guests = (it.links || []).filter(l => !l.revoked);
 
-  root.innerHTML = `
-    <a class="back" href="#/assets">‹ Assets</a>
+  root.innerHTML = `<div class="page">
+    <a class="back" href="#/assets">${ICON.back}Assets</a>
     <div class="head">
       <div style="flex:1;min-width:260px">
-        <input class="title-edit" id="title" value="${esc(it.title)}" aria-label="Asset name">
-        <p class="lede">Viewers see this name on the email screen: “To view ${esc(it.title)}, please enter your email.”</p>
+        <textarea class="title-edit" id="title" rows="1" aria-label="Asset name" title="Click to rename">${esc(it.title)}</textarea>
+        <p class="lede">Viewers read: “To view ${esc(it.title)}, please enter your email.”</p>
       </div>
-      <div class="switch" role="group" aria-label="Who can view">
-        <button type="button" data-vis="public" aria-pressed="${isPublic}">Public</button>
-        <button type="button" data-vis="private" aria-pressed="${!isPublic}">Private</button>
+      <div class="seg" role="group" aria-label="Who can view">
+        <button type="button" data-vis="public" aria-pressed="${isPublic}">${ICON.globe}Public</button>
+        <button type="button" data-vis="private" aria-pressed="${!isPublic}">${ICON.lock}Private</button>
       </div>
     </div>
 
-    <section class="section">
-      <div class="bar"><h2>${isPublic ? 'Public link' : 'Guest links'}</h2></div>
+    <section class="section" style="margin-top:12px">
+      <div class="bar"><h2>${isPublic ? 'Public link' : 'Guest links'}</h2>${isPublic ? '' : `<span class="count">${plural(guests.length, 'link')}</span>`}</div>
       ${isPublic ? `
-        <p class="explain">Anyone with this link can view the asset after entering their email. No password.</p>
-        <div class="share"><code>${esc(publicUrl(it))}</code>
+        <p class="explain">Anyone with this link can view it after entering their email. No password.</p>
+        <div class="share"><span class="url">${esc(publicUrl(it))}</span>
           <button class="btn" id="copyPublic">${ICON.copy}Copy link</button>
-          <a class="btn quiet" href="${esc(publicUrl(it))}" target="_blank" rel="noopener">${ICON.open}Open</a>
+          <a class="btn ghost" href="${esc(publicUrl(it))}" target="_blank" rel="noopener">${ICON.open}Open</a>
         </div>`
       : `
-        <p class="explain">Each guest gets their own link with a username and password, then enters their email.</p>
-        ${guests.map(l => `<div class="guest">
+        <p class="explain">Each guest gets their own link and password, then enters their email.</p>
+        ${guests.length ? `<div class="guests">${guests.map(l => `<div class="guest">
+          <span class="avatar" aria-hidden="true">${esc(initials(l.label || l.username))}</span>
           <div style="min-width:0"><div class="who">${esc(l.label || l.username)}</div>
-            <div class="sub">Username ${esc(l.username)} · ${esc(guestUrl(l))}</div></div>
+            <div class="sub">Username ${esc(l.username)} · Created ${day(l.created_at)}</div></div>
           <button class="btn copy-only" data-copy="${esc(guestUrl(l))}">${ICON.copy}Copy link</button>
           <button class="btn danger" data-revoke="${l.id}">Revoke</button>
-        </div>`).join('') || '<p class="explain" style="color:var(--faint)">No guest links yet.</p>'}
-        <form class="new-guest" id="guestForm">
-          <input type="text" id="gLabel" placeholder="Who is it for, e.g. Gilad Segev">
-          <input type="text" id="gUser" placeholder="Username" value="guest" required>
-          <input type="text" id="gPass" placeholder="Password" required autocomplete="off">
-          <button class="btn primary" type="submit">Create link</button>
+        </div>`).join('')}</div>` : ''}
+        <form class="new-guest" id="guestForm" novalidate>
+          <h2 style="font-size:14.5px">New guest link</h2>
+          <div class="fields">
+            <div class="field"><label for="gLabel">For</label><input class="input" id="gLabel" placeholder="Gilad Segev" autocomplete="off"></div>
+            <div class="field"><label for="gUser">Username</label><input class="input" id="gUser" value="guest" autocomplete="off" spellcheck="false"></div>
+            <div class="field"><label for="gPass">Password</label><input class="input" id="gPass" autocomplete="off" spellcheck="false"></div>
+          </div>
+          <div class="actions"><small id="gErr">The link is copied as soon as it's created. Send the password separately.</small>
+            <button class="btn primary" type="submit" id="gSubmit">Create link</button></div>
         </form>`}
     </section>
 
     <section class="section">
-      <div class="bar"><h2>Viewers</h2><span class="count">${viewers.length} ${viewers.length === 1 ? 'viewer' : 'viewers'}</span></div>
-      ${viewers.length ? viewersTable(viewers, { showAsset: false, showVia: guests.length > 0 || viewers.some(v => v.via !== 'public') })
-        : `<div class="empty"><b>No one has viewed this yet.</b><br>When someone enters their email, they appear here with their device, IP, and when they first and last viewed it.</div>`}
-    </section>`;
+      <div class="bar"><h2>Viewers</h2><span class="count">${plural(viewers.length, 'viewer')}</span></div>
+      ${viewers.length ? viewersList(viewers, { showAsset: false })
+        : `<div class="empty"><b>No one has viewed this yet</b><p>When someone enters their email, they show up here with their device, IP, and when they first and last viewed it.</p></div>`}
+    </section>
+  </div>`;
 
   const title = root.querySelector('#title');
   title.addEventListener('change', async () => {
@@ -324,12 +491,14 @@ async function assetView(root, id) {
     try { await api('/items/' + it.id, { method: 'PATCH', body: JSON.stringify({ title: v }) }); toast('Name saved'); route(); }
     catch (e) { toast('Could not save the name: ' + e.message, true); }
   });
-  title.addEventListener('keydown', (e) => { if (e.key === 'Enter') title.blur(); });
+  const fit = () => { title.style.height = 'auto'; title.style.height = title.scrollHeight + 'px'; };
+  fit(); title.addEventListener('input', fit);
+  title.addEventListener('keydown', (e) => { if (e.key === 'Enter') { e.preventDefault(); title.blur(); } if (e.key === 'Escape') { title.value = it.title; title.blur(); } });
 
   root.querySelectorAll('[data-vis]').forEach(b => b.onclick = async () => {
     if (b.getAttribute('aria-pressed') === 'true') return;
     try { await api('/items/' + it.id, { method: 'PATCH', body: JSON.stringify({ visibility: b.dataset.vis }) });
-      toast(b.dataset.vis === 'public' ? 'Asset is public' : 'Asset is private. The public link is off.'); route(); }
+      toast(b.dataset.vis === 'public' ? 'Now public' : 'Now private. The public link is off.'); route(); }
     catch (e) { toast('Could not change it: ' + e.message, true); }
   });
   const cp = root.querySelector('#copyPublic'); if (cp) cp.onclick = () => copy(publicUrl(it));
@@ -342,25 +511,29 @@ async function assetView(root, id) {
   const gf = root.querySelector('#guestForm');
   if (gf) gf.onsubmit = async (e) => {
     e.preventDefault();
+    const err = root.querySelector('#gErr');
     const username = root.querySelector('#gUser').value.trim(), password = root.querySelector('#gPass').value;
-    if (!username || !password) { toast('A guest link needs a username and a password.', true); return; }
+    if (!username || !password) { err.textContent = 'A guest link needs a username and a password.'; err.style.color = 'var(--danger)'; return; }
+    const b = root.querySelector('#gSubmit'); b.disabled = true; b.textContent = 'Creating…';
     try {
       const l = await api('/items/' + it.id + '/links', { method: 'POST', body: JSON.stringify({
         label: root.querySelector('#gLabel').value.trim(), username, password }) });
       await route(); copy(guestUrl(l), 'Link created and copied');
-    } catch (err) { toast('Could not create the link: ' + err.message, true); }
+    } catch (ex) { b.disabled = false; b.textContent = 'Create link'; err.textContent = 'Could not create the link: ' + ex.message; err.style.color = 'var(--danger)'; }
   };
 }
 
 async function viewersView(root) {
-  const viewers = await api('/viewers');
-  root.innerHTML = `
+  const [viewers, items] = await Promise.all([api('/viewers'), api('/items')]);
+  badges(items, viewers);
+  root.innerHTML = `<div class="page">
     <div class="head">
-      <div><h1>Viewers</h1><p class="lede">Everyone who entered their email to view an asset.</p></div>
-      <span class="count">${viewers.length} ${viewers.length === 1 ? 'viewer' : 'viewers'}</span>
+      <div><h1>Viewers</h1><p class="lede">Everyone who entered their email to see an asset, newest first.</p></div>
+      <span class="count">${plural(viewers.length, 'viewer')}</span>
     </div>
-    ${viewers.length ? viewersTable(viewers, { showAsset: true, showVia: true })
-      : '<div class="empty"><b>No viewers yet.</b><br>Share an asset\'s link. Each person who enters their email shows up here.</div>'}`;
+    ${viewers.length ? viewersList(viewers, { showAsset: true })
+      : '<div class="empty"><b>No viewers yet</b><p>Share an asset\'s link. Each person who enters their email shows up here.</p></div>'}
+  </div>`;
 }
 
 async function route() {
@@ -372,7 +545,7 @@ async function route() {
     else if (parts[1]) await assetView(root, parts[1]);
     else await assetsView(root);
   } catch (e) {
-    root.innerHTML = '<div class="empty"><b>Could not load this page.</b><br>' + esc(e.message) + '</div>';
+    root.innerHTML = `<div class="page"><div class="empty"><b>Could not load this page</b><p>${esc(e.message)}</p><button class="btn" onclick="route()">Try again</button></div></div>`;
   }
 }
 window.addEventListener('hashchange', route);
