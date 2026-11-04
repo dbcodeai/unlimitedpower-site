@@ -4,3 +4,9 @@ node_modules/
 
 # Wrangler local dev state (local D1 copy, account cache) - never commit
 .wrangler/
+
+# Online Viewer item content (2026-11-04): gated behind the Worker's Basic Auth.
+# Deployed via `wrangler deploy` (reads local disk, independent of git) — NEVER
+# committed, since this repo is public and committing it would publish the
+# password-protected content in the clear, defeating the gate entirely.
+workers/pitch-log/public/items/
