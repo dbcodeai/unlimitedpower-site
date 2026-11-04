@@ -2,121 +2,381 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Online Viewer — Admin</title>
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="robots" content="noindex, nofollow">
+<meta name="theme-color" content="#000000">
+<link rel="icon" href="data:,">
+<title>Online Viewer</title>
 <style>
-  body { background:#030916; color:#f4f8ff; font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
-         margin:0; padding:32px 20px 80px; }
-  h1 { font-size:22px; font-weight:600; margin:0 0 6px; }
-  .sub { color:#9aacc4; font-size:14px; margin:0 0 28px; }
-  .wrap { max-width:760px; margin:0 auto; }
-  .card { background:#0b1730; border:1px solid rgba(178,205,255,.18); border-radius:12px; padding:20px; margin-bottom:16px; }
-  .card h2 { font-size:16px; margin:0 0 4px; }
-  .card .meta { color:#9aacc4; font-size:13px; margin-bottom:12px; }
-  .links { border-top:1px solid rgba(178,205,255,.12); margin-top:12px; padding-top:12px; }
-  .link-row { display:flex; align-items:center; justify-content:space-between; gap:10px; padding:8px 0;
-              font-size:14px; border-bottom:1px solid rgba(178,205,255,.08); }
-  .link-row:last-child { border-bottom:none; }
-  .link-row code { background:#030916; padding:2px 6px; border-radius:4px; font-size:12.5px; word-break:break-all; }
-  .link-row button { background:none; border:1px solid rgba(255,128,128,.4); color:#ff9a9a; border-radius:6px;
-                      padding:4px 10px; font-size:12px; cursor:pointer; }
-  input, button.primary { font-size:14px; padding:9px 12px; border-radius:7px; border:1px solid rgba(178,205,255,.3);
-                           background:#030916; color:#f4f8ff; }
-  button.primary { background:#59dcff; color:#030916; border:none; font-weight:600; cursor:pointer; }
-  .row { display:flex; gap:8px; flex-wrap:wrap; margin-top:10px; }
-  .row input { flex:1; min-width:120px; }
-  #newItemForm { display:flex; gap:8px; margin-bottom:28px; flex-wrap:wrap; }
-  #newItemForm input { flex:1; min-width:140px; }
-  .err { color:#ff9a9a; font-size:13px; margin-top:8px; }
-  .copyok { color:#7ee787; font-size:12px; }
+  :root {
+    --bg: #000; --rail: #0a0a0a; --raise: #141414; --line: #222; --line-soft: #181818;
+    --text: #f5f5f5; --muted: #9a9a9a; --faint: #666;
+    --violet: #5227ff; --violet-soft: rgba(82,39,255,.16); --violet-text: #b3a3ff;
+    --danger: #ff6b6b; --ok: #6ee7a8;
+    --ease: cubic-bezier(.22,1,.36,1);
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  html, body { height: 100%; background: var(--bg); color: var(--text);
+    font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    font-size: 15px; -webkit-font-smoothing: antialiased; }
+  ::selection { background: rgba(82,39,255,.55); color: #fff; }
+  button, input { font: inherit; color: inherit; }
+  button { cursor: pointer; }
+  :focus-visible { outline: 2px solid #fff; outline-offset: 2px; }
+
+  .app { display: grid; grid-template-columns: 232px 1fr; min-height: 100vh; }
+  .rail { background: var(--rail); border-right: 1px solid var(--line-soft); padding: 26px 14px;
+    position: sticky; top: 0; height: 100vh; display: flex; flex-direction: column; gap: 30px; }
+  .brand { display: flex; flex-direction: column; gap: 10px; padding: 0 10px; }
+  .brand img { width: 128px; height: auto; opacity: .9; }
+  .brand span { font-size: 13px; color: var(--muted); }
+  nav { display: flex; flex-direction: column; gap: 2px; }
+  nav a { display: flex; align-items: center; gap: 11px; padding: 9px 10px; border-radius: 8px;
+    color: var(--muted); text-decoration: none; font-weight: 500; transition: background-color .15s, color .15s; }
+  nav a svg { width: 17px; height: 17px; flex: none; }
+  nav a:hover { color: var(--text); background: var(--raise); }
+  nav a[aria-current=page] { color: var(--text); background: var(--raise);
+    box-shadow: inset 2px 0 0 var(--violet); }
+
+  main { padding: 40px clamp(20px, 4vw, 56px) 96px; min-width: 0; max-width: 1180px; }
+  .head { display: flex; align-items: flex-end; justify-content: space-between; gap: 16px; margin-bottom: 28px; flex-wrap: wrap; }
+  h1 { font-size: 28px; font-weight: 600; letter-spacing: -.02em; line-height: 1.15; }
+  .lede { color: var(--muted); margin-top: 6px; line-height: 1.5; max-width: 60ch; }
+  .back { display: inline-flex; align-items: center; gap: 6px; color: var(--muted); text-decoration: none;
+    font-size: 14px; margin-bottom: 14px; }
+  .back:hover { color: var(--text); }
+  h2 { font-size: 17px; font-weight: 600; letter-spacing: -.01em; }
+  .count { color: var(--muted); font-size: 14px; }
+
+  .btn { display: inline-flex; align-items: center; gap: 8px; min-height: 38px; padding: 8px 16px;
+    border-radius: 8px; border: 1px solid var(--line); background: transparent; font-weight: 500; font-size: 14px;
+    transition: background-color .15s, border-color .15s; white-space: nowrap; }
+  .btn:hover { background: var(--raise); border-color: #333; }
+  .btn.primary { background: var(--text); color: #000; border-color: var(--text); font-weight: 600; }
+  .btn.primary:hover { background: #fff; }
+  .btn.quiet { border-color: transparent; color: var(--muted); }
+  .btn.quiet:hover { color: var(--text); }
+  .btn.danger { color: var(--danger); border-color: rgba(255,107,107,.3); }
+  .btn.danger:hover { background: rgba(255,107,107,.08); }
+  .btn svg { width: 15px; height: 15px; }
+
+  input[type=text], input[type=password] { min-height: 38px; padding: 8px 12px; border-radius: 8px;
+    border: 1px solid var(--line); background: #0d0d0d; outline: none; font-size: 14px; min-width: 0;
+    transition: border-color .15s; }
+  input::placeholder { color: var(--faint); }
+  input:focus { border-color: #6b6b6b; }
+
+  /* asset list: rows, not cards — one line per thing we have online */
+  .list { border-top: 1px solid var(--line); }
+  .asset-row { display: grid; grid-template-columns: 1fr 110px 90px 170px 20px; align-items: center; gap: 16px;
+    padding: 18px 6px; border-bottom: 1px solid var(--line-soft); text-decoration: none; color: inherit;
+    transition: background-color .15s; }
+  .asset-row:hover { background: #070707; }
+  .asset-row .t { font-weight: 600; font-size: 16px; letter-spacing: -.01em; }
+  .asset-row .s { color: var(--muted); font-size: 13px; margin-top: 3px; }
+  .asset-row .n { color: var(--muted); font-size: 14px; font-variant-numeric: tabular-nums; }
+  .asset-row .chev { color: var(--faint); }
+  .mode { display: inline-flex; align-items: center; gap: 6px; font-size: 13px; font-weight: 500; color: var(--muted); }
+  .mode::before { content: ""; width: 7px; height: 7px; border-radius: 50%; background: #555; }
+  .mode.public { color: var(--violet-text); }
+  .mode.public::before { background: var(--violet); box-shadow: 0 0 0 3px var(--violet-soft); }
+
+  /* asset page */
+  .switch { display: inline-flex; padding: 3px; border-radius: 10px; background: var(--raise); border: 1px solid var(--line); }
+  .switch button { border: none; background: transparent; padding: 7px 16px; border-radius: 7px; color: var(--muted);
+    font-weight: 500; font-size: 14px; transition: background-color .2s var(--ease), color .2s; }
+  .switch button[aria-pressed=true] { background: var(--text); color: #000; }
+  .section { margin-top: 36px; }
+  .section > .bar { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; margin-bottom: 14px; }
+  .explain { color: var(--muted); font-size: 14px; line-height: 1.5; margin-bottom: 14px; max-width: 64ch; }
+  .share { display: flex; align-items: center; gap: 10px; padding: 12px 12px 12px 16px; border: 1px solid var(--line);
+    border-radius: 10px; background: #070707; }
+  .share code { flex: 1; min-width: 0; font-family: ui-monospace, "SF Mono", Menlo, monospace; font-size: 13.5px;
+    color: var(--text); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .guest { display: grid; grid-template-columns: 1fr auto auto; align-items: center; gap: 12px; padding: 12px 0;
+    border-bottom: 1px solid var(--line-soft); }
+  .guest .who { font-weight: 500; }
+  .guest .sub { color: var(--muted); font-size: 13px; margin-top: 3px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .new-guest { display: grid; grid-template-columns: 1.3fr 1fr 1fr auto; gap: 8px; margin-top: 14px; }
+  .title-edit { font-size: 28px; font-weight: 600; letter-spacing: -.02em; background: transparent; border: 1px solid transparent;
+    border-radius: 8px; padding: 2px 8px; margin-left: -9px; width: 100%; max-width: 640px; outline: none; }
+  .title-edit:hover { border-color: var(--line); }
+  .title-edit:focus { border-color: #6b6b6b; }
+
+  /* viewers table */
+  .table-wrap { overflow-x: auto; border-top: 1px solid var(--line); }
+  table { width: 100%; border-collapse: collapse; font-size: 14px; }
+  th { text-align: left; font-weight: 500; color: var(--muted); font-size: 13px; padding: 14px 14px 12px 0; white-space: nowrap;
+    border-bottom: 1px solid var(--line); }
+  td { padding: 15px 14px 15px 0; border-bottom: 1px solid var(--line-soft); white-space: nowrap; font-variant-numeric: tabular-nums; }
+  td.email { font-weight: 500; }
+  td .dim { color: var(--muted); }
+  td.num { text-align: right; padding-right: 28px; }
+  th.num { text-align: right; padding-right: 28px; }
+  .device { display: inline-flex; align-items: center; gap: 7px; }
+  .device svg { width: 15px; height: 15px; color: var(--muted); }
+
+  .empty { padding: 44px 0; color: var(--muted); line-height: 1.6; max-width: 52ch; }
+  .empty b { color: var(--text); font-weight: 600; }
+  .new-asset { display: grid; grid-template-columns: 1.4fr 1fr auto auto; gap: 8px; margin-bottom: 24px; }
+  .hint { color: var(--faint); font-size: 13px; margin: -16px 0 24px; }
+
+  .toast { position: fixed; left: 50%; bottom: 28px; transform: translate(-50%, 16px); opacity: 0;
+    background: var(--text); color: #000; padding: 10px 18px; border-radius: 999px; font-size: 14px; font-weight: 500;
+    pointer-events: none; transition: opacity .25s var(--ease), transform .25s var(--ease); max-width: calc(100vw - 32px); }
+  .toast.show { opacity: 1; transform: translate(-50%, 0); }
+  .toast.err { background: var(--danger); color: #000; }
+  @media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+
+  @media (max-width: 860px) {
+    .app { grid-template-columns: 1fr; }
+    .rail { position: sticky; z-index: 5; height: auto; flex-direction: row; align-items: center; justify-content: space-between;
+      padding: 12px 16px; border-right: none; border-bottom: 1px solid var(--line-soft); }
+    .brand span { display: none; }
+    .brand img { width: 104px; }
+    nav { flex-direction: row; }
+    nav a[aria-current=page] { box-shadow: inset 0 -2px 0 var(--violet); }
+    main { padding: 28px 16px 80px; }
+    .asset-row { grid-template-columns: 1fr auto; }
+    .asset-row .n, .asset-row .chev, .asset-row .last { display: none; }
+    .new-guest, .new-asset { grid-template-columns: 1fr; }
+    .guest { grid-template-columns: 1fr auto; }
+    .guest .copy-only { display: none; }
+  }
 </style>
 </head>
 <body>
-<div class="wrap">
-  <h1>Online Viewer</h1>
-  <p class="sub">Items we've put online, who has a link, and what they've used it with.</p>
-
-  <form id="newItemForm">
-    <input id="newSlug" placeholder="slug (e.g. upx-deck)" required>
-    <input id="newTitle" placeholder="Title shown to guests" required>
-    <button class="primary" type="submit">Add item</button>
-  </form>
-
-  <div id="items"></div>
-  <div class="err" id="err"></div>
+<div class="app">
+  <aside class="rail">
+    <div class="brand"><img src="/brand/logo.svg" alt="Unlimited Power"><span>Online Viewer</span></div>
+    <nav aria-label="Main">
+      <a href="#/assets" data-nav="assets">
+        <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true"><rect x="3" y="3" width="14" height="14" rx="3"/><path d="M3 8h14"/></svg>Assets</a>
+      <a href="#/viewers" data-nav="viewers">
+        <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true"><path d="M1.8 10S5 4.5 10 4.5 18.2 10 18.2 10 15 15.5 10 15.5 1.8 10 1.8 10z"/><circle cx="10" cy="10" r="2.5"/></svg>Viewers</a>
+    </nav>
+  </aside>
+  <main id="view" aria-live="polite"></main>
 </div>
+<div class="toast" id="toast" role="status"></div>
 
 <script>
+const ICON = {
+  desktop: '<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4" aria-hidden="true"><rect x="1.5" y="2.5" width="13" height="8.5" rx="1.5"/><path d="M5.5 14h5M8 11v3"/></svg>',
+  mobile: '<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4" aria-hidden="true"><rect x="4.5" y="1.5" width="7" height="13" rx="1.5"/><path d="M7.2 12.3h1.6"/></svg>',
+  copy: '<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><rect x="5.5" y="5.5" width="8" height="8" rx="1.5"/><path d="M10.5 5.5V3.8c0-.7-.6-1.3-1.3-1.3H3.8c-.7 0-1.3.6-1.3 1.3v5.4c0 .7.6 1.3 1.3 1.3h1.7"/></svg>',
+  open: '<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><path d="M9 2.5h4.5V7M13.5 2.5 7.5 8.5M12 9.5v3c0 .6-.4 1-1 1H3.5c-.6 0-1-.4-1-1V5c0-.6.4-1 1-1h3"/></svg>',
+};
+
 async function api(path, opts) {
   opts = opts || {};
   opts.headers = Object.assign({ 'Content-Type': 'application/json' }, opts.headers || {});
   const r = await fetch('/admin/api' + path, opts);
-  if (!r.ok) throw new Error(await r.text());
-  return r.status === 204 ? null : r.json();
+  if (!r.ok) throw new Error((await r.text()) || ('HTTP ' + r.status));
+  return r.json();
+}
+const esc = (s) => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const fmt = (iso) => {
+  if (!iso) return '';
+  const d = new Date(iso);
+  return d.toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' }) +
+    ' <span class="dim">' + d.toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' }) + '</span>';
+};
+const publicUrl = (it) => location.origin + '/a/' + it.public_token + '/';
+const guestUrl = (l) => location.origin + '/v/' + l.token + '/';
+
+let toastTimer;
+function toast(msg, isErr) {
+  const t = document.getElementById('toast');
+  t.textContent = msg; t.classList.toggle('err', !!isErr); t.classList.add('show');
+  clearTimeout(toastTimer); toastTimer = setTimeout(() => t.classList.remove('show'), 2600);
+}
+async function copy(text, msg) {
+  try { await navigator.clipboard.writeText(text); toast(msg || 'Link copied'); }
+  catch (e) { prompt('Copy this link:', text); }
 }
 
-function esc(s) { return String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+function deviceCell(d) {
+  if (d === 'both') return '<span class="device">' + ICON.desktop + ICON.mobile + 'Both</span>';
+  if (d === 'mobile') return '<span class="device">' + ICON.mobile + 'Mobile</span>';
+  if (d === 'desktop') return '<span class="device">' + ICON.desktop + 'Desktop</span>';
+  return '<span class="dim">Unknown</span>';
+}
 
-async function render() {
-  const err = document.getElementById('err'); err.textContent = '';
-  let items;
-  try { items = await api('/items'); } catch (e) { err.textContent = 'Could not load items: ' + e.message; return; }
-  const root = document.getElementById('items');
-  root.innerHTML = items.map(it => `
-    <div class="card" data-item="${it.id}">
-      <h2>${esc(it.title)}</h2>
-      <div class="meta">/v/&lt;token&gt;/ → public/items/${esc(it.slug)}/</div>
-      <div class="links">
-        ${(it.links || []).filter(l => !l.revoked).map(l => `
-          <div class="link-row">
-            <span><b>${esc(l.label || l.username)}</b> — <code>${location.origin}/v/${l.token}/</code> (user: <code>${esc(l.username)}</code>)</span>
-            <button data-revoke="${l.id}">Revoke</button>
-          </div>`).join('') || '<div class="meta">No guest links yet.</div>'}
-      </div>
-      <div class="row">
-        <input placeholder="Guest name (e.g. Gilad Segev)" class="f-label">
-        <input placeholder="username" class="f-user" value="guest">
-        <input placeholder="password" class="f-pass">
-        <button class="primary" data-newlink="${it.id}">Create link</button>
-      </div>
-    </div>`).join('') || '<p class="sub">No items yet. Add one above.</p>';
+function viewersTable(rows, { showAsset, showVia }) {
+  if (!rows.length) return '';
+  return `<div class="table-wrap"><table>
+    <thead><tr>
+      <th scope="col">Email</th>${showAsset ? '<th scope="col">Asset</th>' : ''}${showVia ? '<th scope="col">Came in through</th>' : ''}
+      <th scope="col">Device</th><th scope="col" class="num">Sessions</th>
+      <th scope="col">First viewed</th><th scope="col">Last seen</th><th scope="col">IP</th>
+    </tr></thead><tbody>
+    ${rows.map(r => `<tr>
+      <td class="email">${esc(r.email)}</td>
+      ${showAsset ? `<td><a href="#/assets/${r.item_id}" style="color:inherit">${esc(r.item_title)}</a></td>` : ''}
+      ${showVia ? `<td class="dim">${r.via === 'public' ? 'Public link' : esc(r.via)}</td>` : ''}
+      <td>${deviceCell(r.device)}</td>
+      <td class="num">${r.sessions}</td>
+      <td>${fmt(r.first_viewed)}</td>
+      <td>${fmt(r.last_seen)}</td>
+      <td class="dim">${esc(r.ip)}</td>
+    </tr>`).join('')}
+    </tbody></table></div>`;
+}
 
-  root.querySelectorAll('[data-newlink]').forEach(btn => btn.addEventListener('click', async () => {
-    const card = btn.closest('.card');
-    const label = card.querySelector('.f-label').value.trim();
-    const username = card.querySelector('.f-user').value.trim();
-    const password = card.querySelector('.f-pass').value;
-    if (!username || !password) { err.textContent = 'username and password are required for a guest link.'; return; }
+// ---------- views ----------
+async function assetsView(root) {
+  const [items, viewers] = await Promise.all([api('/items'), api('/viewers')]);
+  const stats = {};
+  for (const v of viewers) {
+    const s = stats[v.item_id] = stats[v.item_id] || { n: 0, last: '' };
+    s.n++; if (v.last_seen > s.last) s.last = v.last_seen;
+  }
+  root.innerHTML = `
+    <div class="head">
+      <div><h1>Assets</h1><p class="lede">Everything we've put online. Each asset is public or private, and every viewer leaves their email first.</p></div>
+      <button class="btn primary" id="addBtn">New asset</button>
+    </div>
+    <form class="new-asset" id="newForm" hidden>
+      <input type="text" id="nTitle" placeholder="Name viewers will see, e.g. Investor Deck" required>
+      <input type="text" id="nSlug" placeholder="Content folder, e.g. upx-deck" required>
+      <button class="btn primary" type="submit">Create asset</button>
+      <button class="btn quiet" type="button" id="nCancel">Cancel</button>
+    </form>
+    <p class="hint" id="newHint" hidden>The content folder is where the asset's files are deployed. New assets start private.</p>
+    ${items.length ? `<div class="list">${items.map(it => {
+      const s = stats[it.id] || { n: 0, last: '' };
+      return `<a class="asset-row" href="#/assets/${it.id}">
+        <div><div class="t">${esc(it.title)}</div><div class="s">Added ${new Date(it.created_at).toLocaleDateString(undefined,{month:'short',day:'numeric',year:'numeric'})}</div></div>
+        <span class="mode ${it.visibility === 'public' ? 'public' : ''}">${it.visibility === 'public' ? 'Public' : 'Private'}</span>
+        <span class="n">${s.n} ${s.n === 1 ? 'viewer' : 'viewers'}</span>
+        <span class="n last">${s.last ? 'Last seen ' + new Date(s.last).toLocaleDateString(undefined,{month:'short',day:'numeric'}) : 'No views yet'}</span>
+        <span class="chev" aria-hidden="true">›</span>
+      </a>`;}).join('')}</div>`
+    : `<div class="empty"><b>Nothing is online yet.</b><br>Create an asset to get a link you can share.</div>`}`;
+
+  const form = root.querySelector('#newForm'), hint = root.querySelector('#newHint');
+  root.querySelector('#addBtn').onclick = () => { form.hidden = false; hint.hidden = false; root.querySelector('#nTitle').focus(); };
+  root.querySelector('#nCancel').onclick = () => { form.hidden = true; hint.hidden = true; };
+  form.onsubmit = async (e) => {
+    e.preventDefault();
     try {
-      const link = await api('/items/' + btn.dataset.newlink + '/links', {
-        method: 'POST', body: JSON.stringify({ label, username, password }),
-      });
-      await render();
-      const url = location.origin + '/v/' + link.token + '/';
-      try { await navigator.clipboard.writeText(url); err.innerHTML = '<span class="copyok">Link copied: ' + esc(url) + '</span>'; }
-      catch (e) { err.textContent = 'Link created: ' + url; }
-    } catch (e) { err.textContent = 'Could not create link: ' + e.message; }
-  }));
-  root.querySelectorAll('[data-revoke]').forEach(btn => btn.addEventListener('click', async () => {
-    if (!confirm('Revoke this link? The guest will no longer be able to log in.')) return;
-    try { await api('/links/' + btn.dataset.revoke, { method: 'DELETE' }); await render(); }
-    catch (e) { err.textContent = 'Could not revoke: ' + e.message; }
-  }));
+      const it = await api('/items', { method: 'POST', body: JSON.stringify({
+        title: root.querySelector('#nTitle').value.trim(), slug: root.querySelector('#nSlug').value.trim() }) });
+      toast('Asset created'); location.hash = '#/assets/' + it.id;
+    } catch (err) { toast('Could not create the asset: ' + err.message, true); }
+  };
 }
 
-document.getElementById('newItemForm').addEventListener('submit', async (e) => {
-  e.preventDefault();
-  const slug = document.getElementById('newSlug').value.trim();
-  const title = document.getElementById('newTitle').value.trim();
-  const err = document.getElementById('err'); err.textContent = '';
-  try {
-    await api('/items', { method: 'POST', body: JSON.stringify({ slug, title }) });
-    document.getElementById('newSlug').value = ''; document.getElementById('newTitle').value = '';
-    await render();
-  } catch (e2) { err.textContent = 'Could not add item: ' + e2.message; }
-});
+async function assetView(root, id) {
+  const [items, viewers] = await Promise.all([api('/items'), api('/viewers?item=' + id)]);
+  const it = items.find(x => String(x.id) === String(id));
+  if (!it) { root.innerHTML = '<a class="back" href="#/assets">‹ Assets</a><div class="empty"><b>This asset no longer exists.</b></div>'; return; }
+  const isPublic = it.visibility === 'public';
+  const guests = (it.links || []).filter(l => !l.revoked);
 
-render();
+  root.innerHTML = `
+    <a class="back" href="#/assets">‹ Assets</a>
+    <div class="head">
+      <div style="flex:1;min-width:260px">
+        <input class="title-edit" id="title" value="${esc(it.title)}" aria-label="Asset name">
+        <p class="lede">Viewers see this name on the email screen: “To view ${esc(it.title)}, please enter your email.”</p>
+      </div>
+      <div class="switch" role="group" aria-label="Who can view">
+        <button type="button" data-vis="public" aria-pressed="${isPublic}">Public</button>
+        <button type="button" data-vis="private" aria-pressed="${!isPublic}">Private</button>
+      </div>
+    </div>
+
+    <section class="section">
+      <div class="bar"><h2>${isPublic ? 'Public link' : 'Guest links'}</h2></div>
+      ${isPublic ? `
+        <p class="explain">Anyone with this link can view the asset after entering their email. No password.</p>
+        <div class="share"><code>${esc(publicUrl(it))}</code>
+          <button class="btn" id="copyPublic">${ICON.copy}Copy link</button>
+          <a class="btn quiet" href="${esc(publicUrl(it))}" target="_blank" rel="noopener">${ICON.open}Open</a>
+        </div>`
+      : `
+        <p class="explain">Each guest gets their own link with a username and password, then enters their email.</p>
+        ${guests.map(l => `<div class="guest">
+          <div style="min-width:0"><div class="who">${esc(l.label || l.username)}</div>
+            <div class="sub">Username ${esc(l.username)} · ${esc(guestUrl(l))}</div></div>
+          <button class="btn copy-only" data-copy="${esc(guestUrl(l))}">${ICON.copy}Copy link</button>
+          <button class="btn danger" data-revoke="${l.id}">Revoke</button>
+        </div>`).join('') || '<p class="explain" style="color:var(--faint)">No guest links yet.</p>'}
+        <form class="new-guest" id="guestForm">
+          <input type="text" id="gLabel" placeholder="Who is it for, e.g. Gilad Segev">
+          <input type="text" id="gUser" placeholder="Username" value="guest" required>
+          <input type="text" id="gPass" placeholder="Password" required autocomplete="off">
+          <button class="btn primary" type="submit">Create link</button>
+        </form>`}
+    </section>
+
+    <section class="section">
+      <div class="bar"><h2>Viewers</h2><span class="count">${viewers.length} ${viewers.length === 1 ? 'viewer' : 'viewers'}</span></div>
+      ${viewers.length ? viewersTable(viewers, { showAsset: false, showVia: guests.length > 0 || viewers.some(v => v.via !== 'public') })
+        : `<div class="empty"><b>No one has viewed this yet.</b><br>When someone enters their email, they appear here with their device, IP, and when they first and last viewed it.</div>`}
+    </section>`;
+
+  const title = root.querySelector('#title');
+  title.addEventListener('change', async () => {
+    const v = title.value.trim(); if (!v) { title.value = it.title; return; }
+    try { await api('/items/' + it.id, { method: 'PATCH', body: JSON.stringify({ title: v }) }); toast('Name saved'); route(); }
+    catch (e) { toast('Could not save the name: ' + e.message, true); }
+  });
+  title.addEventListener('keydown', (e) => { if (e.key === 'Enter') title.blur(); });
+
+  root.querySelectorAll('[data-vis]').forEach(b => b.onclick = async () => {
+    if (b.getAttribute('aria-pressed') === 'true') return;
+    try { await api('/items/' + it.id, { method: 'PATCH', body: JSON.stringify({ visibility: b.dataset.vis }) });
+      toast(b.dataset.vis === 'public' ? 'Asset is public' : 'Asset is private. The public link is off.'); route(); }
+    catch (e) { toast('Could not change it: ' + e.message, true); }
+  });
+  const cp = root.querySelector('#copyPublic'); if (cp) cp.onclick = () => copy(publicUrl(it));
+  root.querySelectorAll('[data-copy]').forEach(b => b.onclick = () => copy(b.dataset.copy));
+  root.querySelectorAll('[data-revoke]').forEach(b => b.onclick = async () => {
+    if (!confirm('Revoke this link? The guest will no longer be able to open it.')) return;
+    try { await api('/links/' + b.dataset.revoke, { method: 'DELETE' }); toast('Link revoked'); route(); }
+    catch (e) { toast('Could not revoke: ' + e.message, true); }
+  });
+  const gf = root.querySelector('#guestForm');
+  if (gf) gf.onsubmit = async (e) => {
+    e.preventDefault();
+    const username = root.querySelector('#gUser').value.trim(), password = root.querySelector('#gPass').value;
+    if (!username || !password) { toast('A guest link needs a username and a password.', true); return; }
+    try {
+      const l = await api('/items/' + it.id + '/links', { method: 'POST', body: JSON.stringify({
+        label: root.querySelector('#gLabel').value.trim(), username, password }) });
+      await route(); copy(guestUrl(l), 'Link created and copied');
+    } catch (err) { toast('Could not create the link: ' + err.message, true); }
+  };
+}
+
+async function viewersView(root) {
+  const viewers = await api('/viewers');
+  root.innerHTML = `
+    <div class="head">
+      <div><h1>Viewers</h1><p class="lede">Everyone who entered their email to view an asset.</p></div>
+      <span class="count">${viewers.length} ${viewers.length === 1 ? 'viewer' : 'viewers'}</span>
+    </div>
+    ${viewers.length ? viewersTable(viewers, { showAsset: true, showVia: true })
+      : '<div class="empty"><b>No viewers yet.</b><br>Share an asset\'s link. Each person who enters their email shows up here.</div>'}`;
+}
+
+async function route() {
+  const root = document.getElementById('view');
+  const parts = (location.hash.replace(/^#\/?/, '') || 'assets').split('/');
+  document.querySelectorAll('[data-nav]').forEach(a => { if (a.dataset.nav === parts[0]) a.setAttribute('aria-current', 'page'); else a.removeAttribute('aria-current'); });
+  try {
+    if (parts[0] === 'viewers') await viewersView(root);
+    else if (parts[1]) await assetView(root, parts[1]);
+    else await assetsView(root);
+  } catch (e) {
+    root.innerHTML = '<div class="empty"><b>Could not load this page.</b><br>' + esc(e.message) + '</div>';
+  }
+}
+window.addEventListener('hashchange', route);
+route();
 </script>
 </body>
 </html>
