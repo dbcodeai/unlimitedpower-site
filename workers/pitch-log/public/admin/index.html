@@ -183,6 +183,12 @@
     font-size: 13px; font-weight: 600; color: var(--muted); text-transform: uppercase; }
   .guest .who { font-weight: 550; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .guest .sub { color: var(--faint); font-size: 13px; margin-top: 2px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .files-list { display: grid; gap: 1px; margin-bottom: 14px; border-radius: var(--r); overflow: hidden; background: var(--line-soft); }
+  .file-row { display: flex; align-items: center; gap: 10px; padding: 9px 12px; background: var(--raise);
+    font-size: 13.5px; font-family: ui-monospace, "SF Mono", Menlo, monospace; color: var(--muted); }
+  .file-row svg { width: 15px; height: 15px; flex-shrink: 0; opacity: .7; }
+  .upload-row { display: flex; gap: 10px; flex-wrap: wrap; }
+  .upload-row .btn { cursor: pointer; }
   .new-guest { background: var(--raise); border-radius: var(--r); padding: 20px; display: grid; gap: 16px; }
   .new-guest .fields { display: grid; grid-template-columns: minmax(0, 1.3fr) minmax(0, 1fr) minmax(0, 1fr); gap: 14px; }
   .new-guest .actions { display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap; }
@@ -273,6 +279,7 @@ const ICON = {
   plus: '<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" aria-hidden="true"><path d="M8 3v10M3 8h10"/></svg>',
   chev: '<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m6 3.5 4.5 4.5L6 12.5"/></svg>',
   back: '<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10 3.5 5.5 8l4.5 4.5"/></svg>',
+  upload: '<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8 11V3M4.5 6.5 8 3l3.5 3.5M3 13h10"/></svg>',
 };
 
 async function api(path, opts) {
@@ -429,11 +436,12 @@ async function assetsView(root) {
 }
 
 async function assetView(root, id) {
-  const [items, viewers] = await Promise.all([api('/items'), api('/viewers?item=' + id)]);
+  const [items, viewers, filesRes] = await Promise.all([api('/items'), api('/viewers?item=' + id), api('/items/' + id + '/files')]);
   const it = items.find(x => String(x.id) === String(id));
   if (!it) { root.innerHTML = `<div class="page"><a class="back" href="#/assets">${ICON.back}Assets</a><div class="empty"><b>This asset no longer exists</b><p>It may have been removed.</p></div></div>`; return; }
   const isPublic = it.visibility === 'public';
   const guests = (it.links || []).filter(l => !l.revoked);
+  const files = filesRes.files || [];
 
   root.innerHTML = `<div class="page">
     <a class="back" href="#/assets">${ICON.back}Assets</a>
@@ -449,6 +457,18 @@ async function assetView(root, id) {
     </div>
 
     <section class="section" style="margin-top:12px">
+      <div class="bar"><h2>Files</h2><span class="count">${files.length ? plural(files.length, 'file') : 'Empty'}</span></div>
+      <p class="explain">${files.length ? 'Uploading replaces everything below.' : 'Nothing is live yet — upload a PDF or an exported deck folder.'}</p>
+      ${files.length ? `<div class="files-list">${files.map(f => `<div class="file-row">${ICON.doc}<span>${esc(f)}</span></div>`).join('')}</div>` : ''}
+      <div class="upload-row">
+        <label class="btn" for="uploadPdf">${ICON.upload}Upload a PDF<input type="file" id="uploadPdf" accept="application/pdf" hidden></label>
+        <label class="btn ghost" for="uploadFolder">${ICON.upload}Upload a deck folder<input type="file" id="uploadFolder" webkitdirectory multiple hidden></label>
+      </div>
+      <div class="form-error" id="uploadErr" style="margin-top:8px"></div>
+      <div id="uploadProgress" style="display:none;margin-top:8px" class="explain"></div>
+    </section>
+
+    <section class="section">
       <div class="bar"><h2>${isPublic ? 'Public link' : 'Guest links'}</h2>${isPublic ? '' : `<span class="count">${plural(guests.length, 'link')}</span>`}</div>
       ${isPublic ? `
         <p class="explain">Anyone with this link can view it after entering their email. No password.</p>
@@ -500,6 +520,41 @@ async function assetView(root, id) {
       toast(b.dataset.vis === 'public' ? 'Now public' : 'Now private. The public link is off.'); route(); }
     catch (e) { toast('Could not change it: ' + e.message, true); }
   });
+  const uploadErr = root.querySelector('#uploadErr'), uploadProgress = root.querySelector('#uploadProgress');
+  const MAX_UPLOAD_BYTES = 24 * 1024 * 1024;
+  const putFile = async (file, relPath) => {
+    const r = await fetch(`/admin/api/items/${it.id}/files?path=${encodeURIComponent(relPath)}`, { method: 'PUT', body: file });
+    if (!r.ok) throw new Error((await r.text()) || ('HTTP ' + r.status));
+  };
+  const runUpload = async (fileList, singlePdf) => {
+    uploadErr.textContent = '';
+    const picked = Array.from(fileList);
+    if (!picked.length) return;
+    const oversize = picked.find(f => f.size > MAX_UPLOAD_BYTES);
+    if (oversize) { uploadErr.textContent = `"${oversize.name}" is over the 25MB-per-file limit.`; return; }
+    uploadProgress.style.display = '';
+    try {
+      uploadProgress.textContent = "Clearing what's live…";
+      await api('/items/' + it.id + '/files', { method: 'DELETE' });
+      for (let i = 0; i < picked.length; i++) {
+        const f = picked[i];
+        const relPath = singlePdf ? f.name : (f.webkitRelativePath.split('/').slice(1).join('/') || f.name);
+        uploadProgress.textContent = `Uploading ${i + 1} of ${picked.length}: ${relPath}`;
+        await putFile(f, relPath);
+      }
+      if (singlePdf) {
+        uploadProgress.textContent = 'Finishing…';
+        await api('/items/' + it.id + '/files/finalize', { method: 'POST', body: JSON.stringify({ pdfPath: picked[0].name }) });
+      }
+      toast(picked.length === 1 ? 'Uploaded' : `Uploaded ${picked.length} files`);
+      route();
+    } catch (ex) {
+      uploadProgress.style.display = 'none';
+      uploadErr.textContent = 'Upload failed: ' + ex.message;
+    }
+  };
+  root.querySelector('#uploadPdf').onchange = (e) => { runUpload(e.target.files, true); e.target.value = ''; };
+  root.querySelector('#uploadFolder').onchange = (e) => { runUpload(e.target.files, false); e.target.value = ''; };
   const cp = root.querySelector('#copyPublic'); if (cp) cp.onclick = () => copy(publicUrl(it));
   root.querySelectorAll('[data-copy]').forEach(b => b.onclick = () => copy(b.dataset.copy));
   root.querySelectorAll('[data-revoke]').forEach(b => b.onclick = async () => {

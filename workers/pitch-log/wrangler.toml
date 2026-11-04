@@ -15,6 +15,14 @@ database_name = "upx-pitch-log"
 # Replace after `wrangler d1 create upx-pitch-log`:
 database_id = "95fc12cc-4713-4136-a78a-f62ef13b279c"
 
+# Uploaded asset files (admin "Upload" button). R2 needs enabling in the Cloudflare
+# dashboard first (not yet done), so this uses KV instead: 25MB max per stored file,
+# which covers a single PDF or any one file of a deck export. Created via
+# `wrangler kv namespace create OV_FILES`.
+[[kv_namespaces]]
+binding = "OV_FILES"
+id = "a284e8194e6f4b139a90ec1f7b1d99ad"
+
 [assets]
 directory = "./public"
 binding = "ASSETS"

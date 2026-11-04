@@ -92,6 +92,42 @@ function jsonRes(obj, status) {
   return new Response(JSON.stringify(obj), { status: status || 200, headers: { "Content-Type": "application/json" } });
 }
 
+// Extension -> Content-Type for uploaded files. The browser's reported type is not
+// trusted (it varies by OS and is often blank for .js/.html), so storage always uses
+// this map, keyed off the stored path, not the client.
+function guessContentType(path) {
+  const ext = (path.split(".").pop() || "").toLowerCase();
+  const map = {
+    html: "text/html; charset=utf-8", htm: "text/html; charset=utf-8",
+    css: "text/css; charset=utf-8", js: "text/javascript; charset=utf-8", mjs: "text/javascript; charset=utf-8",
+    json: "application/json; charset=utf-8", txt: "text/plain; charset=utf-8", map: "application/json; charset=utf-8",
+    svg: "image/svg+xml", png: "image/png", jpg: "image/jpeg", jpeg: "image/jpeg",
+    gif: "image/gif", webp: "image/webp", avif: "image/avif", ico: "image/x-icon",
+    pdf: "application/pdf", mp4: "video/mp4", webm: "video/webm", mp3: "audio/mpeg",
+    woff: "font/woff", woff2: "font/woff2", ttf: "font/ttf", otf: "font/otf",
+  };
+  return map[ext] || "application/octet-stream";
+}
+
+// Auto-generated index.html for a single uploaded PDF, so opening the asset shows the
+// PDF directly instead of a blank page. A multi-file deck upload brings its own index.html.
+function pdfWrapperPage(pdfPath, title) {
+  const t = escHtml(title), href = escHtml(pdfPath);
+  return `<!doctype html><html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="robots" content="noindex, nofollow"><title>${t}</title>
+<style>*{margin:0;padding:0}html,body{height:100%;background:#1a1a1a}
+iframe{border:0;width:100%;height:100%;display:block}
+.bar{position:fixed;top:0;left:0;right:0;display:flex;justify-content:flex-end;padding:10px 14px;
+  background:linear-gradient(#000 0,transparent 100%);z-index:1;pointer-events:none}
+.bar a{pointer-events:auto;font:600 13px -apple-system,sans-serif;color:#fff;background:rgba(255,255,255,.14);
+  padding:7px 14px;border-radius:999px;text-decoration:none;backdrop-filter:blur(8px)}
+</style></head><body>
+<div class="bar"><a href="${href}" target="_blank" rel="noopener">Open in new tab</a></div>
+<iframe src="${href}" title="${t}"></iframe>
+</body></html>`;
+}
+
 function parseCookies(request) {
   const out = {};
   const h = request.headers.get("Cookie") || "";
@@ -158,6 +194,51 @@ async function adminRouter(request, env, url) {
       await env.DB.prepare("DELETE FROM items WHERE id = ?").bind(itemMatch).run();
       return jsonRes({ ok: true });
     }
+  }
+  // /admin/api/items/:id/files — list, clear-all, and per-file upload for an asset's
+  // deployed content. Stored in Workers KV (R2 is not yet enabled on this account).
+  if (itemMatch && parts.length === 3 && parts[2] === "files") {
+    const item = await env.DB.prepare("SELECT id, slug FROM items WHERE id = ?").bind(itemMatch).first();
+    if (!item) return new Response("item not found", { status: 404 });
+    const prefix = `items/${item.slug}/`;
+    if (request.method === "GET") {
+      const files = [];
+      let cursor;
+      do {
+        const list = await env.OV_FILES.list({ prefix, cursor, limit: 1000 });
+        for (const k of list.keys) files.push(k.name.slice(prefix.length));
+        cursor = list.list_complete ? undefined : list.cursor;
+      } while (cursor);
+      return jsonRes({ files: files.sort() });
+    }
+    if (request.method === "PUT") {
+      const relPath = String(url.searchParams.get("path") || "").trim().replace(/^\/+/, "");
+      if (!relPath || relPath.includes("..") || relPath.length > 300) return new Response("bad path", { status: 400 });
+      const bytes = await request.arrayBuffer();
+      if (bytes.byteLength > 24 * 1024 * 1024) return new Response("that file is over the 25MB limit", { status: 413 });
+      await env.OV_FILES.put(prefix + relPath, bytes, { metadata: { contentType: guessContentType(relPath) } });
+      return jsonRes({ ok: true, path: relPath, bytes: bytes.byteLength });
+    }
+    if (request.method === "DELETE") {
+      let cursor;
+      do {
+        const list = await env.OV_FILES.list({ prefix, cursor, limit: 1000 });
+        await Promise.all(list.keys.map((k) => env.OV_FILES.delete(k.name)));
+        cursor = list.list_complete ? undefined : list.cursor;
+      } while (cursor);
+      return jsonRes({ ok: true });
+    }
+  }
+  if (itemMatch && parts.length === 4 && parts[2] === "files" && parts[3] === "finalize" && request.method === "POST") {
+    const item = await env.DB.prepare("SELECT id, slug, title FROM items WHERE id = ?").bind(itemMatch).first();
+    if (!item) return new Response("item not found", { status: 404 });
+    let body; try { body = await request.json(); } catch { body = {}; }
+    const pdfPath = String(body.pdfPath || "").trim();
+    if (pdfPath) {
+      await env.OV_FILES.put(`items/${item.slug}/index.html`, pdfWrapperPage(pdfPath, item.title),
+        { metadata: { contentType: "text/html; charset=utf-8" } });
+    }
+    return jsonRes({ ok: true });
   }
   if (itemMatch && parts.length === 3 && parts[2] === "links") {
     if (request.method === "POST") {
@@ -311,9 +392,19 @@ async function serveGated(request, env, { scope, item, linkId, segs }) {
   const rest = "/" + segs.slice(2).join("/");
   const assetPath = rest === "/" ? "/index.html" : rest;
   if (assetPath === "/index.html") await logEvent("ov_view", email);
-  const assetUrl = new URL(request.url);
-  assetUrl.pathname = `/items/${item.slug}${assetPath}`;
-  const res = await env.ASSETS.fetch(new Request(assetUrl.toString(), request));
+  const key = `items/${item.slug}${assetPath}`;
+  // Uploaded content lives in KV; the one pre-existing deck (upx-deck) was deployed as
+  // a static asset and has nothing in KV, so it falls through to env.ASSETS unchanged.
+  const kvHit = await env.OV_FILES.getWithMetadata(key, "arrayBuffer");
+  let res;
+  if (kvHit && kvHit.value) {
+    const contentType = (kvHit.metadata && kvHit.metadata.contentType) || "application/octet-stream";
+    res = new Response(kvHit.value, { headers: { "Content-Type": contentType, "Cache-Control": "no-store" } });
+  } else {
+    const assetUrl = new URL(request.url);
+    assetUrl.pathname = "/" + key;
+    res = await env.ASSETS.fetch(new Request(assetUrl.toString(), request));
+  }
   if (!setSid) return res;
   const out = new Response(res.body, res);
   out.headers.append("Set-Cookie", sidCookie);
