@@ -142,7 +142,7 @@ function parseCookies(request) {
 
 // /admin/api/* — Basic Auth (ADMIN_USER/ADMIN_PASS). Manage items and per-item guest links.
 async function adminRouter(request, env, url) {
-  if (!adminAuthorized(request, env)) return needAuth("Online Viewer Admin");
+  if (!adminAuthorized(request, env)) return needAuth("Online Viewer X Admin");
   const parts = url.pathname.replace(/^\/admin\/api\/?/, "").split("/").filter(Boolean);
   const now = new Date().toISOString();
 
@@ -429,7 +429,7 @@ async function viewerRouter(request, env, url) {
       ok = user === link.username && (await sha256Hex(pass)) === link.pass_hash;
     } catch (e) { ok = false; }
   }
-  if (!ok) return needAuth("Online Viewer");
+  if (!ok) return needAuth("Online Viewer X");
   const item = { id: link.item_id, slug: link.item_slug, title: link.item_title };
   return serveGated(request, env, { scope: "v/" + token, item, linkId: link.id, segs });
 }
@@ -544,7 +544,7 @@ export default {
     if (url.pathname.startsWith("/admin/api/")) return adminRouter(request, env, url);
 
     if (url.pathname === "/admin" || url.pathname === "/admin/") {
-      if (!adminAuthorized(request, env)) return needAuth("Online Viewer Admin");
+      if (!adminAuthorized(request, env)) return needAuth("Online Viewer X Admin");
       const assetUrl = new URL(request.url); assetUrl.pathname = "/admin/index.html";
       return env.ASSETS.fetch(new Request(assetUrl.toString(), request));
     }
